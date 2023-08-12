@@ -237,6 +237,7 @@ class UploaderExtension(Uploader):
         else:
             raise NotImplementedError
 
+        # TODO this should be done at runtime, i.e. after job init
         if destination == 's3':
             authenticator = S3StaticCredentials()
             if auth_mode == 'env':
