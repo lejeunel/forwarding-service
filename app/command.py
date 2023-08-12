@@ -1,25 +1,22 @@
 import os
 import fnmatch
-from .enum_types import FileStatus, JobError
-from .models import File, Job
+from .enum_types import ItemStatus, JobError
+from .models import Item, Job
 from datetime import datetime
 import uuid
 from .utils import filter_table
 from sqlalchemy.exc import IntegrityError
 
 
-def get_file_by_query(
-    filename=None,
-    source_path=None,
-    bucket=None,
-    prefix=None,
+def get_item_by_query(
+    source=None,
+    destination=None,
     status=None,
-    user=None,
     job_id=None,
     limit=50,
     sort_on="upload_date",
 ):
-    """Return File representation, with filtering capabilities
+    """Return Item representation, with filtering capabilities
 
     Args:
         filename (str, optional): filename filtering. Defaults to None.
@@ -33,20 +30,20 @@ def get_file_by_query(
         sort_on (str, optional): Sort file by. Defaults to "upload_date".
 
     Returns:
-        [FileSchema]: return files representation in a list
+        [ItemSchema]: return files representation in a list
     """
-    from .models import File
-    from .schemas import FileSchema
+    from .models import Item
+    from .schemas import ItemSchema
 
-    query = filter_table(File, **locals())
+    query = filter_table(Item, **locals())
     if sort_on is not None:
-        field = getattr(File, sort_on)
+        field = getattr(Item, sort_on)
         query = query.order_by(field)
 
     query = query.limit(limit)
     files = query.all()
 
-    return FileSchema(many=True).dump(files)
+    return ItemSchema(many=True).dump(files)
 
 
 def get_job_by_query(id=None, status=None, limit=50, sort_on="creation_date"):

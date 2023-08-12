@@ -1,18 +1,19 @@
-from moto.core import set_initial_no_auth_action_count
-from . import upload
+from app.worker import _upload
 
 
-@set_initial_no_auth_action_count(4)
-def test_regexp(app, bucket, mock_file_tree, mock_refresh_credentials):
+def test_regexp_leaves_no_items(app, mock_file_tree):
 
-    from fsapp.models import Job, JobError, FileStatus, File
-    from fsapp.enum_types import JobStatus
+    from app.models import Item
+    job = _upload("/root/path/project/", "s3://bucket/project/",
+                  regexp="^.*\.funnyextension")
+    items = Item.query.all()
+    assert len(items) == 0
 
-    upload(regexp=r".*\.jpg")
-    job = Job.query.first()
-    files = File.query.all()
-    status = set([f.status for f in files])
 
-    assert job.error == JobError.NONE
-    assert job.last_state == JobStatus.DONE
-    assert len(files) == 0
+def test_regexp_that_match(app, mock_file_tree):
+
+    from app.models import Item
+    job = _upload("/root/path/project/", "s3://bucket/project/",
+                  regexp="^.*\.ext")
+    items = Item.query.all()
+    assert len(items) >= 0

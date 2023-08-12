@@ -1,8 +1,8 @@
 import enum
 
 
-class FileStatus(enum.Enum):
-    """Allowed file status options.
+class ItemStatus(enum.Enum):
+    """Allowed status options.
 
     =============== ====== =======
     Status          Action Result

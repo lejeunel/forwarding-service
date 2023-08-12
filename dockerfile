@@ -51,4 +51,4 @@ COPY . .
 
 EXPOSE 80
 ENTRYPOINT ./docker-entrypoint.sh $0 $@
-CMD ["flask", "--app", "fsapp/dev", "--debug", "run", "--host=0.0.0.0"]
+CMD ["flask", "--app", "app/dev", "--debug", "run", "--host=0.0.0.0"]

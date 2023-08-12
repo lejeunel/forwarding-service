@@ -19,5 +19,5 @@ list=("ae2aa3d0-29a5-45b2-91ca-064348441aaf"
      )
 for i in "${list[@]}"; do
     echo "resuming job:" $i
-    flask --app fsapp/dev resume-job --testing $i
+    flask --app app/dev resume-job --testing $i
 done

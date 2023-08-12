@@ -4,7 +4,7 @@ services:
   #   build: .
   #   image: server
   #   container_name: server_web
-  #   command: flask --app fsapp/test run --host=0.0.0.0
+  #   command: flask --app app/test run --host=0.0.0.0
   #   ports:
   #     - "5000:5000"
   #   depends_on:
@@ -12,7 +12,7 @@ services:
   worker:
     build: .
     container_name: server_worker
-    command: flask --app 'fsapp:create_app("dev",True)' rq worker -v default
+    command: flask --app 'app:create_app("dev",True)' rq worker -v default
     volumes:
     - /home/ec2-user/efs/code:/home/ec2-user/efs/code
     - ./instance:/cls-forwarding-service/instance

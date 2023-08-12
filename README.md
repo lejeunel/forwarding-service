@@ -1,25 +1,17 @@
-# cls-forwarding-service
+# Resilient data forwarding for AWS S3
 
 ## Introduction
 
-This small app aim to upload file from a (remote) directory to a AWS S3 bucket
+This small app aims to allow robust and resilient data transfer to cloud storage.
+As of today, we support local file-system as source, and S3 bucket as destination.
 
-## Usage
-The stack is configured through docker-compose and can be started from project root:
+This is useful when working with large volumes of data, since we 
+internally stores all data transactions in a SQLite database to allow resuming.
 
-``` sh
-docker-compose up
-```
+## Installation
 
-Start a new upload job
-``` sh
-flask --app fsapp/test test-upload-dir --help
-```
 
-Get information on queues
-``` sh
-flask --app fsapp/test rq
-```
+
 
 ## Unit testing
 Install package with dev dependencies
@@ -37,7 +29,7 @@ poetry run pytest
 
 For showing help page
 ```sh
->flask --app fsapp/dev --help
+>flask --app app/dev --help
 ```
 
 ## SQLite 
