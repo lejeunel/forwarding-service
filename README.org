@@ -23,3 +23,7 @@ To authenticate to S3, pick one of the following options, and set it in the ~con
 #+begin_src sh
 flask --help
 #+end_src
+
+** Next steps
+Support multiprocessing pool for parallel upload.
+This should "work" with SQLite with minor slow downs (concurrent writes).
