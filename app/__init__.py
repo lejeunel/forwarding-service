@@ -2,15 +2,13 @@
 
 from flask import Flask
 from flask_marshmallow import Marshmallow
-from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
-from app.forwarder import ForwarderExtension, BaseReader, BaseWriter
+from app.forwarder import ForwarderExtension
 
 db = SQLAlchemy()
 fs = ForwarderExtension()
 ma = Marshmallow()
-migrate = Migrate()
 
 
 def create_app(mode='notest'):
@@ -33,7 +31,6 @@ def create_app(mode='notest'):
 
     db.init_app(app)
     ma.init_app(app)
-    migrate.init_app(app, db)
 
     app.cli.add_command(upload)
     app.cli.add_command(show_job)

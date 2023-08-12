@@ -23,7 +23,7 @@ def resume_job(id):
     return _resume_job(id)
 
 
-@click.command("show-job", help="List all jobs, can be filter")
+@click.command("list-jobs", help="List jobs")
 @click.option("--id", type=str, help="Filter by job id")
 @click.option("--status", type=str, help="Filter by job status")
 @click.option("--limit", help="Limit to show", default=50)
@@ -34,8 +34,7 @@ def show_job(id, status, limit):
     print(res)
 
 
-@click.command("show-file", help="List all files, can be filter")
-@click.option("--filename", type=str, help="Filter by file name")
+@click.command("list-items", help="List items")
 @click.option(
     "--source", "-s", type=str, help="Filter by directory where file is transfered"
 )

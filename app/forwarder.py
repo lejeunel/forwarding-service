@@ -174,6 +174,7 @@ class ForwarderExtension(Forwarder):
         source = app.config.get('FORWARDER_SOURCE')
         destination = app.config.get('FORWARDER_DESTINATION')
         auth_mode = app.config.get('FORWARDER_AUTH_MODE', None)
+        auth_profile = app.config.get('FORWARDER_AUTH_PROFILE', 'default')
 
         if source == 'filesystem':
             self.reader = FileSystemReader()
@@ -182,11 +183,13 @@ class ForwarderExtension(Forwarder):
 
         if destination == 's3':
             authenticator = S3StaticCredentials()
-            if auth_mode == 'AWS_CREDS':
+            if auth_mode == 'env':
                 creds = {'aws_access_key_id': config("AWS_ACCESS_KEY_ID"),
                          'aws_secret_access_key': config("AWS_SECRET_ACCESS_KEY")}
                 authenticator = S3StaticCredentials(**creds)
-            elif auth_mode == 'VAULT':
+            elif auth_mode == 'profile':
+                authenticator = S3StaticCredentials()
+            elif auth_mode == 'vault':
                 authenticator = VaultCredentials(config('VAULT_URL'), config('VAULT_TOKEN_PATH'),
                                                  config('VAULT_ROLE_ID'), config('VAULT_SECRET_ID'))
 

@@ -1,0 +1,25 @@
+* Resilient data forwarding for AWS S3
+
+** Introduction
+
+This small app aims to allow robust and resilient data transfer to cloud storage.
+As of today, we support local file-system as source, and S3 bucket as destination.
+
+This is useful when working with large volumes of data, since we 
+internally stores all data transactions in a SQLite database to allow resuming.
+
+** Installation
+#+begin_src sh
+poetry install
+#+end_src
+
+
+** Authentication
+
+To authenticate to S3, pick one of the following options, and set it in the ~config.py~
+
+
+** Usage
+#+begin_src sh
+flask --help
+#+end_src
