@@ -19,7 +19,7 @@ def create_app(mode='notest'):
     service name defined in docker-compose.yml
     """
 
-    from .cli import (resume_job, show_item, show_job, upload)
+    from .cli import (resume, list_item, list_job, upload)
     from .models import Job, Item
 
     app = Flask(__name__)
@@ -27,15 +27,16 @@ def create_app(mode='notest'):
         app.config.from_object("app.config.test")
     else:
         app.config.from_object("app.config.notest")
-        fs.init_app(app)
+
+    fs.init_app(app)
 
     db.init_app(app)
     ma.init_app(app)
 
     app.cli.add_command(upload)
-    app.cli.add_command(show_job)
-    app.cli.add_command(resume_job)
-    app.cli.add_command(show_item)
+    app.cli.add_command(list_job)
+    app.cli.add_command(resume)
+    app.cli.add_command(list_item)
 
     with app.app_context():
         db.create_all()

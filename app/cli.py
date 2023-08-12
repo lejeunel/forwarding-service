@@ -2,8 +2,9 @@ import logging
 
 import click
 
-from .worker import _upload, _resume_job
+from .worker import _init_and_upload, _resume
 from rich import print
+from .schemas import JobSchema
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
@@ -14,27 +15,28 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 @click.argument("source", type=str)
 @click.argument("destination", type=str)
 def upload(source, destination, regexp):
-    return _upload(source, destination, regexp)
+    job = _init_and_upload(source, destination, regexp)
+    print(JobSchema().dump(job))
 
 
-@click.command("resume-job")
+@click.command("resume")
 @click.argument("id", type=str)
-def resume_job(id):
-    return _resume_job(id)
+def resume(id):
+    return _resume(id)
 
 
-@click.command("list-jobs", help="List jobs")
+@click.command("list-job", help="List jobs")
 @click.option("--id", type=str, help="Filter by job id")
 @click.option("--status", type=str, help="Filter by job status")
 @click.option("--limit", help="Limit to show", default=50)
-def show_job(id, status, limit):
+def list_job(id, status, limit):
     from app.command import get_job_by_query
 
     res = get_job_by_query(id=id, status=status, limit=limit)
     print(res)
 
 
-@click.command("list-items", help="List items")
+@click.command("list-item", help="List items")
 @click.option(
     "--source", "-s", type=str, help="Filter by directory where file is transfered"
 )
@@ -42,7 +44,7 @@ def show_job(id, status, limit):
 @click.option("--status", type=str, help="Filter by file status")
 @click.option("--job_id", type=str, help="Filter by Job_id")
 @click.option("--limit", help="Limit to show", default=10)
-def show_item(source, destination, status, job_id, limit):
+def list_item(source, destination, status, job_id, limit):
     from app.command import get_item_by_query
 
     res = get_item_by_query(

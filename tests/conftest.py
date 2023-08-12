@@ -29,16 +29,28 @@ def mock_file_tree():
 
 def mock_bytes(*args, **kwargs):
 
-    return (io.BytesIO(bytes("test", "ascii")), None)
+    return io.BytesIO(bytes("test", "ascii"))
 
 
 @pytest.fixture(autouse=True)
-def mock_load_fileobj():
+def mock_read_file():
 
-    fileobj = mock_bytes()
     with patch(
         "app.uploader.FileSystemReader.read",
         wraps=mock_bytes,
+    ) as m:
+        yield m
+
+
+@pytest.fixture(autouse=True)
+def mock_uploader_setup():
+
+    def void(*args, **kwargs):
+        pass
+
+    with patch(
+        "app.uploader.UploaderExtension.setup",
+        wraps=void,
     ) as m:
         yield m
 
@@ -52,8 +64,7 @@ def app():
     with app.app_context():
         fs.reader = FileSystemReader()
         fs.writer = MockWriter()
-        fs.do_checksum = False
-        fs.n_procs = 1
+
         db.create_all()
 
         yield app

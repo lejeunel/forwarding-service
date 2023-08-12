@@ -24,6 +24,7 @@ class ConfigTest(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///test.db"
     AUTH_MODE = None
     TESTING = True
+    UPLOADER_N_PROCS = 1
 
 
 test = ConfigTest()

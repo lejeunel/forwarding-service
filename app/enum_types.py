@@ -30,10 +30,10 @@ class JobStatus(enum.Enum):
     DONE = "DONE"
 
 
-class JobError(enum.Enum):
+class JobError(enum.IntEnum):
 
-    INIT_ERROR = "INIT_ERROR"
-    S3_ERROR = "S3_ERROR"
-    CHECKSUM_ERROR = "CHECKSUM_ERROR"
-    VAULT_ERROR = "VAULT_ERROR"
-    NONE = "NONE"
+    NONE = 0
+    INIT_ERROR = 1
+    S3_ERROR = 2
+    CHECKSUM_ERROR = 3
+    VAULT_ERROR = 4

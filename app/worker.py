@@ -7,7 +7,7 @@ from rich import print
 from sqlalchemy.exc import IntegrityError
 
 
-def _parse_items(job_id):
+def _parse_and_commit_items(job_id):
     """Parse items from given job_id
     Save in database all parsed items, information such as location are retrieved from
     from job description
@@ -56,7 +56,7 @@ def _parse_items(job_id):
     return db.session.query(Item).filter(Item.job_id == job.id).all()
 
 
-def _upload_job(job_id):
+def _upload(job_id):
     """Run a job
 
     Args:
@@ -69,30 +69,17 @@ def _upload_job(job_id):
         None
     """
     from . import db, fs
-    from .enum_types import ItemStatus, JobError, JobStatus
-    from .models import Item, Job
+    from .enum_types import JobError, JobStatus
+    from .models import Job
 
     job = db.session.get(Job, job_id)
     if job.last_state != JobStatus.PARSED:
 
-        items = _parse_items(job_id)
-    else:
-        items = db.session.query(Item).filter(Item.job_id == job.id).all()
-
-    # filter-out items that are already transferred (happens on resume)
-    items_id = [i.id for i in items if i.status != ItemStatus.TRANSFERRED]
+        _parse_and_commit_items(job_id)
 
     try:
-        fs.refresh_credentials()
-        fs.ping()
-
-        job.last_state = JobStatus.TRANSFERRING
-
-        if fs.n_procs > 1:
-            fs.run_parallel(items_id, job_id)
-        else:
-            for item in items:
-                fs.run(item.id, job.id)
+        fs.setup(job.source, job.destination)
+        fs.run_job(job_id)
     except BotoClientError as e:
         err_info = get_aws_error_info(e)
         job.error = JobError.S3_ERROR
@@ -109,7 +96,7 @@ def _upload_job(job_id):
     return job
 
 
-def _init_job(source, destination, regexp):
+def _init(source, destination, regexp):
     """Initialization of job.
     We perform basic checks prior to queueing up.
 
@@ -132,6 +119,8 @@ def _init_job(source, destination, regexp):
         destination=destination,
         regexp=regexp,
     )
+
+    fs.setup(source, destination)
 
     job.error = JobError.NONE
     init_error = False
@@ -156,7 +145,7 @@ def _init_job(source, destination, regexp):
     return job
 
 
-def _upload(source, destination, regexp='.*'):
+def _init_and_upload(source, destination, regexp='.*'):
     """Main function that performs upload.
 
     Args:
@@ -167,19 +156,15 @@ def _upload(source, destination, regexp='.*'):
         user (str, optional): _description_. Defaults to "GENERIC".
     """
     from .enum_types import JobError
-    from .worker import _upload_job
-    from .schemas import JobSchema
 
-    job = _init_job(source, destination, regexp)
+    job = _init(source, destination, regexp)
     if job.error != JobError.NONE:
         return job
 
-    job = _upload_job(job.id)
-
-    print(JobSchema().dump(job))
+    return _upload(job.id)
 
 
-def _resume_job(job_id):
+def _resume(job_id):
     """Resume Job where status is not Done and file is Parsed
 
     Args:

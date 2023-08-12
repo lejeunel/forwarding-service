@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
-
 from flask_sqlalchemy.model import DefaultMeta
+import fnmatch
+import re
 
 
 def filter_table(model: DefaultMeta, **kwargs):
@@ -20,3 +20,28 @@ def filter_table(model: DefaultMeta, **kwargs):
             query = query.filter(getattr(model, k) == v)
 
     return query
+
+
+def chunks(l, n):
+    """Yield n number of striped chunks from l."""
+    for i in range(0, n):
+        yield l[i::n]
+
+
+def _match_file_extension(filename: str, pattern: str, is_regex=False):
+    """
+    Function that return boolean, tell if the filename match the the given pattern
+
+    filename -- (str) Name of file
+    pattern -- (str) Pattern to filter file, can be '*.txt' if not regex, else '.*\txt'
+    is_regex -- Bool If pattern is a regex or not
+    """
+    if not is_regex:
+        pattern = fnmatch.translate(pattern)
+
+    reobj = re.compile(pattern)
+    match = reobj.match(filename)
+
+    if match is None:
+        return False
+    return True
