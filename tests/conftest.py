@@ -53,6 +53,7 @@ def app():
         fs.reader = FileSystemReader()
         fs.writer = MockWriter()
         fs.do_checksum = False
+        fs.n_procs = 1
         db.create_all()
 
         yield app

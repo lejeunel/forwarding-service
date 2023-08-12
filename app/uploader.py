@@ -116,12 +116,6 @@ class Uploader:
             if self.do_checksum:
                 checksum = self.compute_sha256_checksum(bytes_)
 
-            raise BotoClientError({
-                'Error': {
-                    'Code': 'ProvisionedThroughputExceededException',
-                    'Message': 'oops'
-                }
-            }, 'testing')
             self.writer(bytes_, out_uri, type_, checksum)
 
             item.status = ItemStatus.TRANSFERRED
@@ -173,10 +167,11 @@ class FileSystemReader(BaseReader):
     def exists(self, uri):
         return os.path.exists(urlparse(uri).path)
 
-    def list(self, path, files_only=True):
+    def list(self, uri, files_only=True):
         """
         Return URIs of all items present at path
         """
+        path = urlparse(uri).path
         if os.path.isfile(path):
             return [path]
 
