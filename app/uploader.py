@@ -5,16 +5,26 @@ import os
 from urllib.parse import urlparse
 import fnmatch
 import re
+from multiprocessing import Pool, current_process
+import copy
+from aws_error_utils import get_aws_error_info
 
 import boto3
 from decouple import config
 from abc import ABC, abstractmethod
 from .auth import S3StaticCredentials, VaultCredentials, BaseAuthenticator
+from botocore.client import ClientError as BotoClientError
 
 from base64 import b64encode
 import hashlib
 
 logger = logging.getLogger("S3Sender")
+
+
+def chunks(l, n):
+    """Yield n number of striped chunks from l."""
+    for i in range(0, n):
+        yield l[i::n]
 
 
 def _match_file_extension(filename: str, pattern: str, is_regex=False):
@@ -74,11 +84,12 @@ class BaseWriter(ABC):
         pass
 
 
-class Forwarder:
-    def __init__(self, reader: BaseReader, writer: BaseWriter, do_checksum=True):
+class Uploader:
+    def __init__(self, reader: BaseReader, writer: BaseWriter, do_checksum=True, n_procs=8):
         self.reader = reader
         self.writer = writer
         self.do_checksum = do_checksum
+        self.n_procs = n_procs
 
     @staticmethod
     def compute_sha256_checksum(bytes_):
@@ -87,14 +98,47 @@ class Forwarder:
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def __call__(self, in_uri, out_uri):
-        bytes_, type_ = self.reader(in_uri)
+    def run(self, item_id, job_id):
+        from .models import db, Item, Job
+        from .enum_types import ItemStatus, JobError
 
-        checksum = None
-        if self.do_checksum:
-            checksum = self.compute_sha256_checksum(bytes_)
+        try:
 
-        self.writer(bytes_, out_uri, type_, checksum)
+            item = Item.query.get(item_id)
+            job = Job.query.get(job_id)
+
+            in_uri = item.uri
+            out_uri = job.destination + in_uri.split('/')[-1]
+            print(f'[{current_process().pid}] {in_uri} -> {out_uri}', flush=True)
+            bytes_, type_ = self.reader(item.uri)
+
+            checksum = None
+            if self.do_checksum:
+                checksum = self.compute_sha256_checksum(bytes_)
+
+            raise BotoClientError({
+                'Error': {
+                    'Code': 'ProvisionedThroughputExceededException',
+                    'Message': 'oops'
+                }
+            }, 'testing')
+            self.writer(bytes_, out_uri, type_, checksum)
+
+            item.status = ItemStatus.TRANSFERRED
+            db.session.commit()
+
+        except BotoClientError as e:
+            err_info = get_aws_error_info(e)
+            job.error = JobError.S3_ERROR
+            job.info = {"message": err_info.message,
+                        "operation": err_info.operation_name}
+            db.session.commit()
+
+    def run_parallel(self, items_id, job_id):
+        list_in_out_uri = [(id, job_id) for id in items_id]
+
+        with Pool(self.n_procs) as p:
+            p.starmap(self.run, list_in_out_uri)
 
     def src_exists(self, uri):
         return self.reader.exists(uri)
@@ -148,6 +192,18 @@ class S3Writer(BaseWriter):
         self.client = boto3.client('s3')
         self.authenticator = authenticator
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k != 'client':
+                setattr(result, k, copy.deepcopy(v, memo))
+        setattr(result, 'client', boto3.client('s3'))
+
+    def __reduce__(self):
+        return (self.__class__, (self.authenticator,))
+
     def __call__(
             self, bytes_, uri, mime_type=None, checksum=None,
     ):
@@ -164,17 +220,17 @@ class S3Writer(BaseWriter):
         self.client = boto3.client("s3", **creds)
 
 
-class ForwarderExtension(Forwarder):
+class UploaderExtension(Uploader):
     def __init__(self, app=None):
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
 
-        source = app.config.get('FORWARDER_SOURCE')
-        destination = app.config.get('FORWARDER_DESTINATION')
-        auth_mode = app.config.get('FORWARDER_AUTH_MODE', None)
-        auth_profile = app.config.get('FORWARDER_AUTH_PROFILE', 'default')
+        source = app.config.get('UPLOADER_SOURCE')
+        destination = app.config.get('UPLOADER_DESTINATION')
+        auth_mode = app.config.get('UPLOADER_AUTH_MODE', None)
+        auth_profile = app.config.get('UPLOADER_AUTH_PROFILE', 'default')
 
         if source == 'filesystem':
             self.reader = FileSystemReader()
@@ -194,6 +250,7 @@ class ForwarderExtension(Forwarder):
                                                  config('VAULT_ROLE_ID'), config('VAULT_SECRET_ID'))
 
             self.writer = S3Writer(authenticator)
-            self.do_checksum = app.config.get('FORWARDER_CHECKSUM', False)
+            self.do_checksum = app.config.get('UPLOADER_CHECKSUM', False)
+            self.n_procs = app.config.get('UPLOADER_N_PROCS', 1)
         else:
             raise NotImplementedError

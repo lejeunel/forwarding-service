@@ -14,16 +14,12 @@ poetry install
 #+end_src
 
 
-** Authentication
+** Configuration
 
-To authenticate to S3, pick one of the following options, and set it in the ~config.py~
-
+See [[file:app/config.py][config.py]] to setup authentication methods and parallelism.
 
 ** Usage
+
 #+begin_src sh
 flask --help
 #+end_src
-
-** Next steps
-Support multiprocessing pool for parallel upload.
-This should "work" with SQLite with minor slow downs (concurrent writes).

@@ -21,14 +21,3 @@ TEST_FILES = [
 
 TEST_TREE = FileTree.from_paths(*TEST_FILES)
 mock_tree = MockFileTree(os, TEST_TREE)
-
-
-# def upload(
-#     bucket=bucket,
-#     prefix="prefix",
-#     regexp=".*",
-#     src="/fileshares/hcs-research10/project/experiment/plate",
-#     user=user,
-# ):
-#     _upload("", bucket, prefix, testing=True,
-#             regexp=regexp, src=src, user=user)

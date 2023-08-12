@@ -12,7 +12,7 @@ import moto
 import pytest
 
 from . import mock_tree
-from app.forwarder import BaseWriter
+from app.uploader import BaseWriter
 
 
 class MockWriter(BaseWriter):
@@ -37,7 +37,7 @@ def mock_load_fileobj():
 
     fileobj = mock_bytes()
     with patch(
-        "app.forwarder.FileSystemReader.read",
+        "app.uploader.FileSystemReader.read",
         wraps=mock_bytes,
     ) as m:
         yield m
@@ -46,7 +46,7 @@ def mock_load_fileobj():
 @pytest.fixture
 def app():
     from app import create_app, fs, db
-    from app.forwarder import FileSystemReader
+    from app.uploader import FileSystemReader
 
     app = create_app(mode='test')
     with app.app_context():

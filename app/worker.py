@@ -6,8 +6,6 @@ from hvac.exceptions import VaultError
 from rich import print
 from sqlalchemy.exc import IntegrityError
 
-from .utils import MD5CheckSumException
-
 
 def _parse_items(job_id):
     """Parse items from given job_id
@@ -59,7 +57,7 @@ def _parse_items(job_id):
 
 
 def _upload_job(job_id):
-    """Launch an existing job from job_id
+    """Run a job
 
     Args:
         job_id (str): job id
@@ -82,30 +80,24 @@ def _upload_job(job_id):
         items = db.session.query(Item).filter(Item.job_id == job.id).all()
 
     # filter-out items that are already transferred (happens on resume)
-    items = [i for i in items if i.status != ItemStatus.TRANSFERRED]
+    items_id = [i.id for i in items if i.status != ItemStatus.TRANSFERRED]
 
     try:
         fs.refresh_credentials()
         fs.ping()
 
         job.last_state = JobStatus.TRANSFERRING
-        # TODO add multiprocessing pool here
-        for item in items:
 
-            fs(item.uri, job.destination + item.uri.split('/')[-1])
-
-            item.status = ItemStatus.TRANSFERRED
-
-            db.session.commit()
+        if fs.n_procs > 1:
+            fs.run_parallel(items_id, job_id)
+        else:
+            for item in items:
+                fs.run(item.id, job.id)
     except BotoClientError as e:
         err_info = get_aws_error_info(e)
         job.error = JobError.S3_ERROR
         job.info = {"message": err_info.message,
                     "operation": err_info.operation_name}
-    except MD5CheckSumException:
-        item.status = ItemStatus.ERROR
-        job.error = JobError.CHECKSUM_ERROR
-        job.info = {"message": f"Detected corruption transferring {item.uri}"}
     except VaultError as e:
         job.error = JobError.VAULT_ERROR
         job.info = {"message": e.errors, "operation": ""}
@@ -176,12 +168,15 @@ def _upload(source, destination, regexp='.*'):
     """
     from .enum_types import JobError
     from .worker import _upload_job
+    from .schemas import JobSchema
 
     job = _init_job(source, destination, regexp)
     if job.error != JobError.NONE:
         return job
 
-    return _upload_job(job.id)
+    job = _upload_job(job.id)
+
+    print(JobSchema().dump(job))
 
 
 def _resume_job(job_id):

@@ -4,10 +4,10 @@ from flask import Flask
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
 
-from app.forwarder import ForwarderExtension
+from app.uploader import UploaderExtension
 
 db = SQLAlchemy()
-fs = ForwarderExtension()
+fs = UploaderExtension()
 ma = Marshmallow()
 
 

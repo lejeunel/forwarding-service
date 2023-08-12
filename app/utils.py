@@ -3,18 +3,6 @@
 from flask_sqlalchemy.model import DefaultMeta
 
 
-class MD5CheckSumException(Exception):
-    pass
-
-
-class UserBucketException(Exception):
-    pass
-
-
-class BucketAccessException(Exception):
-    pass
-
-
 def filter_table(model: DefaultMeta, **kwargs):
     """
     Applies filters defined in kwargs on sqlalchemy model.
