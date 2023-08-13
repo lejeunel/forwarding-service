@@ -34,3 +34,6 @@ pylint = "^2.17.5"
 
 [tool.pyright]
 venv = "forwarding-service"
+exclude = ["**/node_modules",
+    "**/__pycache__",
+]

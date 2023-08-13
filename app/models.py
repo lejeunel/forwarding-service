@@ -12,7 +12,8 @@ from . import db
 
 class Item(db.Model):
     id = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
-    uri = db.Column(db.String)
+    in_uri = db.Column(db.String)
+    out_uri = db.Column(db.String)
     status = db.Column(db.Enum(ItemStatus))
     job_id = db.Column(UUIDType, sa.ForeignKey("job.id"))
     created = db.Column(db.DateTime(timezone=True), server_default=func.now())

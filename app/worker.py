@@ -23,22 +23,30 @@ def _parse_and_commit_items(job_id):
     db.session.commit()
 
     # parse source
-    uris = fs.src_list(
+    in_uris = fs.src_list(
         job.source,
         files_only=True,
         pattern_filter=job.regexp,
         is_regex=True,
     )
 
+    if job.destination[-1] == '/':
+        # concatenate in_uri name
+        out_uris = [job.destination + in_uri.split('/')[-1] for in_uri in in_uris]
+    else:
+        out_uris = [job.destination]
+
     items = [
         Item(
-            uri=uri,
+            in_uri=in_uri,
+            out_uri=out_uri,
             status=ItemStatus.PENDING,
             job_id=job.id,
             created=datetime.now(),
         )
-        for uri in uris
+        for in_uri, out_uri in zip(in_uris, out_uris)
     ]
+
     db.session.add_all(items)
     db.session.commit()
 
@@ -110,12 +118,6 @@ def _init(source, destination, regexp):
     if not fs.src_exists(source):
         init_error = True
         messages.append(f"Source directory {source} not found.")
-
-    if (source[-1] != "/") or (destination[-1] != "/"):
-        init_error = True
-        messages.append(
-            f"source {source} and destination {destination} must have trailing slashes."
-        )
 
     if init_error:
         job.error = JobError.INIT_ERROR

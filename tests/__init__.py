@@ -11,7 +11,7 @@ TEST_DIRS = [
 ]
 TEST_FILES = [
     s + "/" + f
-    for f in ["file_{}.ext".format(uuid.uuid4()) for _ in range(10)]
+    for f in ["file_{}.ext".format(i) for i in range(10)]
     for s in TEST_DIRS
 ]
 

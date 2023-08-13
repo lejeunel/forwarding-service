@@ -20,3 +20,4 @@ def test_auth_fail(app, mock_file_tree):
         fs.writer = MockBadAuthWriter()
         job = _init_and_upload("file:///root/path/project/", "s3://bucket/project/")
         assert job.error == JobError.AUTH_ERROR
+        assert job.info['message'] == 'bad auth'

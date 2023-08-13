@@ -1,7 +1,4 @@
-from sqlalchemy.exc import IntegrityError
-
 from .utils import filter_table
-
 
 def get_item_by_query(
     source=None,

@@ -23,18 +23,18 @@ class Uploader:
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def upload_one_item(self, item_id, job_id):
+    def upload_one_item(self, item_id):
         from .enum_types import ItemStatus, JobError
         from .models import Item, Job, db
 
         try:
             item = db.session.get(Item, item_id)
-            job = db.session.get(Job, job_id)
 
-            in_uri = item.uri
-            out_uri = job.destination + in_uri.split("/")[-1]
+            in_uri = item.in_uri
+            out_uri = item.in_uri
+
             print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
-            bytes_, type_ = self.reader(item.uri)
+            bytes_, type_ = self.reader(in_uri)
 
             checksum = None
             if self.do_checksum:
@@ -60,19 +60,18 @@ class Uploader:
             "job_info": None,
         }
 
-    def run_parallel(self, items_id, job_id):
+    def upload_parallel(self, items_id):
         from .models import Item, Job, db
 
-        list_in_out_uri = [(id, job_id) for id in items_id]
-
         with Pool(self.n_procs) as p:
-            results = p.starmap(self.upload_one_item, list_in_out_uri)
+            results = p.map(self.upload_one_item, items_id)
 
         # find most critical job error and update db record
         job_error_info = sorted(
             [(r["job_error"], r["job_info"]) for r in results], key=lambda t: t[0]
         )[-1]
-        job = db.session.get(Job, job_id)
+        item = db.session.get(Item, items_id[0])
+        job = db.session.get(Job, item.job_id)
         job.error = job_error_info[0]
         job.info = job_error_info[1]
 
@@ -115,10 +114,11 @@ class Uploader:
         items_id = [i.id for i in items]
 
         if self.n_procs > 1:
-            self.run_parallel(items_id, job_id)
+            self.n_procs = min(self.n_procs, len(items_id))
+            self.upload_parallel(items_id)
         else:
             for item_id in items_id:
-                res = self.upload_one_item(item_id, job_id)
+                res = self.upload_one_item(item_id)
                 item = db.session.get(Item, res["item_id"])
                 item.status = res["item_status"]
                 item.transferred = res["item_transferred"]
