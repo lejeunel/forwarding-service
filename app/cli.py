@@ -19,16 +19,16 @@ def upload(source, destination, regexp):
     print(JobSchema().dump(job))
 
 
-@click.command("resume")
+@click.command("resume", help="resume job")
 @click.argument("id", type=str)
 def resume(id):
     return _resume(id)
 
 
 @click.command("list-job", help="List jobs")
-@click.option("--id", type=str, help="Filter by job id")
-@click.option("--status", type=str, help="Filter by job status")
-@click.option("--limit", help="Limit to show", default=50)
+@click.option("--id", type=str)
+@click.option("--status", type=str)
+@click.option("--limit", default=50)
 def list_job(id, status, limit):
     from app.command import get_job_by_query
 
@@ -37,13 +37,11 @@ def list_job(id, status, limit):
 
 
 @click.command("list-item", help="List items")
-@click.option(
-    "--source", "-s", type=str, help="Filter by directory where file is transfered"
-)
-@click.option("--destination", "-d", type=str, help="Filter by bucket where file is transfered")
-@click.option("--status", type=str, help="Filter by file status")
-@click.option("--job_id", type=str, help="Filter by Job_id")
-@click.option("--limit", help="Limit to show", default=10)
+@click.option("--source", "-s", type=str)
+@click.option("--destination", "-d", type=str)
+@click.option("--status", type=str)
+@click.option("--job_id", type=str)
+@click.option("--limit", default=10)
 def list_item(source, destination, status, job_id, limit):
     from app.command import get_item_by_query
 

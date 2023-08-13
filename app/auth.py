@@ -1,4 +1,6 @@
 import hvac
+from hvac.exceptions import VaultError
+from .exceptions import AuthenticationError
 
 
 class BaseAuthenticator:
@@ -37,9 +39,12 @@ class VaultCredentials(BaseAuthenticator):
         self.client = hvac.Client(url=url)
 
     def __call__(self):
-        self.client.auth.approle.login(
-            role_id=self.role_id,
-            secret_id=self.secret_id,
-        )
+        try:
+            self.client.auth.approle.login(
+                role_id=self.role_id,
+                secret_id=self.secret_id,
+            )
 
-        return self.client.read(self.token_path)
+            return self.client.read(self.token_path)
+        except VaultError as e:
+            raise AuthenticationError(message=e.message, operation=e.method)

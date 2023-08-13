@@ -73,21 +73,12 @@ def _upload(job_id):
     from .models import Job
 
     job = db.session.get(Job, job_id)
-    if job.last_state != JobStatus.PARSED:
+    if job.last_state < JobStatus.PARSED:
 
         _parse_and_commit_items(job_id)
 
-    try:
-        fs.setup(job.source, job.destination)
-        fs.run_job(job_id)
-    except BotoClientError as e:
-        err_info = get_aws_error_info(e)
-        job.error = JobError.S3_ERROR
-        job.info = {"message": err_info.message,
-                    "operation": err_info.operation_name}
-    except VaultError as e:
-        job.error = JobError.VAULT_ERROR
-        job.info = {"message": e.errors, "operation": ""}
+    fs.setup(job.source, job.destination)
+    fs.run_job(job_id)
 
     if job.error == JobError.NONE:
         job.last_state = JobStatus.DONE
@@ -177,10 +168,10 @@ def _resume(job_id):
 
     job = db.session.get(Job, job_id)
 
-    if job.last_state != JobStatus.DONE:
+    if job.last_state < JobStatus.DONE:
         job.error = JobError.NONE
         job.info = None
         db.session.commit()
-        _upload_job(job.id)
+        _upload(job.id)
     else:
         print(f'Job {job_id} already done.')

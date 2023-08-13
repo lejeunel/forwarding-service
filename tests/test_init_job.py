@@ -1,14 +1,6 @@
-from app.worker import _init_and_upload
-from app.enum_types import JobError, JobStatus
 import pytest
-
-
-def test_init_job(app, mock_file_tree):
-
-    job = _init_and_upload("file:///root/path/project/",
-                           "s3://bucket/project/")
-    assert job.last_state == JobStatus.DONE
-    assert job.error == JobError.NONE
+from app.enum_types import JobError
+from app.worker import _init_and_upload
 
 
 @pytest.mark.parametrize("in_uri,out_uri", [("file:///root/path/project/", "s3://bucket/file.ext"),

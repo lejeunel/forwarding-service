@@ -3,6 +3,9 @@ from .base import BaseWriter
 import copy
 from urllib.parse import urlparse
 from .auth import BaseAuthenticator
+from .exceptions import TransferError
+from botocore.client import ClientError as BotoClientError
+from aws_error_utils import get_aws_error_info
 
 
 class S3Writer(BaseWriter):
@@ -27,11 +30,15 @@ class S3Writer(BaseWriter):
     ):
         uri = urlparse(uri)
 
-        return self.client.put_object(
-            Body=bytes_, Bucket=uri.netloc, Key=uri.path, ContentType=mime_type,
-            ChecksumAlgorithm='SHA256',
-            ChecksumSHA256=checksum
-        )
+        try:
+            return self.client.put_object(
+                Body=bytes_, Bucket=uri.netloc, Key=uri.path, ContentType=mime_type,
+                ChecksumAlgorithm='SHA256',
+                ChecksumSHA256=checksum
+            )
+        except BotoClientError as e:
+            e = get_aws_error_info(e)
+            raise TransferError(message=e.message, operation=e.operation_name)
 
     def refresh_credentials(self):
         creds = self.authenticator()

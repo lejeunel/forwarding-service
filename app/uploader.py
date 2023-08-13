@@ -4,10 +4,8 @@ from base64 import b64encode
 from multiprocessing import Pool, current_process
 from urllib.parse import urlparse
 
-from aws_error_utils import get_aws_error_info
-from botocore.client import ClientError as BotoClientError
 from decouple import config
-from sqlalchemy import select
+from .exceptions import TransferError, AuthenticationError
 
 from .auth import S3StaticCredentials, VaultCredentials
 from .base import BaseReader, BaseWriter
@@ -32,7 +30,7 @@ class Uploader:
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def do_one_item(self, item_id, job_id):
+    def upload_one_item(self, item_id, job_id):
         from .enum_types import ItemStatus, JobError
         from .models import Item, Job, db
 
@@ -53,15 +51,11 @@ class Uploader:
             self.writer(bytes_, out_uri, type_, checksum)
 
             item.status = ItemStatus.TRANSFERRED
-            # db.session.commit()
 
-        except BotoClientError as e:
-            err_info = get_aws_error_info(e)
-            error = JobError.S3_ERROR
-            info = {"message": err_info.message,
-                    "operation": err_info.operation_name}
-            # db.session.commit()
-            return {'item_id': item.id, 'item_status': item.status, 'job_error': JobError.NONE, 'job_info': info}
+        except TransferError as e:
+            info = {"message": e.message,
+                    "operation": e.operation}
+            return {'item_id': item.id, 'item_status': item.status, 'job_error': JobError.TRANSFER_ERROR, 'job_info': info}
         return {'item_id': item.id, 'item_status': item.status, 'job_error': JobError.NONE, 'job_info': None}
 
     def run_parallel(self, items_id, job_id):
@@ -70,7 +64,7 @@ class Uploader:
         list_in_out_uri = [(id, job_id) for id in items_id]
 
         with Pool(self.n_procs) as p:
-            results = p.starmap(self.do_one_item, list_in_out_uri)
+            results = p.starmap(self.upload_one_item, list_in_out_uri)
 
         # find most critical job error and update db record
         job_error_info = sorted([(r['job_error'], r['job_info'])
@@ -86,6 +80,39 @@ class Uploader:
 
         db.session.commit()
 
+    def run_job(self, job_id):
+        from . import db
+        from .enum_types import ItemStatus, JobStatus, JobError
+        from .models import Item, Job
+
+        job = db.session.get(Job, job_id)
+
+        try:
+            self.refresh_credentials()
+        except AuthenticationError as e:
+            job.error = JobError.AUTH_ERROR
+            job.info = {'message': e.message, 'operation': e.operation}
+            db.session.commit()
+            return
+
+        job.last_state = JobStatus.TRANSFERRING
+
+        # filter-out items that are already transferred (happens on resume)
+        items = db.session.query(Item).where(Item.job_id == job.id).where(
+            Item.status != ItemStatus.TRANSFERRED)
+        items_id = [i.id for i in items]
+
+        if self.n_procs > 1:
+            self.run_parallel(items_id, job_id)
+        else:
+            for item_id in items_id:
+                res = self.upload_one_item(item_id, job_id)
+                item = db.session.get(Item, res['item_id'])
+                item.status = res['item_status']
+                job.error = res['job_error']
+                job.info = res['job_info']
+                db.session.commit()
+
     def src_exists(self, uri):
         return self.reader.exists(uri)
 
@@ -99,13 +126,6 @@ class Uploader:
     def refresh_credentials(self):
         self.reader.refresh_credentials()
         self.writer.refresh_credentials()
-
-    def ping(self):
-        """
-        Checks that both source and destination are available
-        """
-        self.reader.ping()
-        self.writer.ping()
 
 
 class UploaderExtension(Uploader):
@@ -151,27 +171,3 @@ class UploaderExtension(Uploader):
             self.writer = S3Writer(self.authenticator)
         else:
             raise NotImplementedError
-
-    def run_job(self, job_id):
-        from . import db
-        from .enum_types import ItemStatus, JobStatus
-        from .models import Item, Job
-
-        self.refresh_credentials()
-        self.ping()
-
-        job = db.session.get(Job, job_id)
-
-        job.last_state = JobStatus.TRANSFERRING
-
-        # filter-out items that are already transferred (happens on resume)
-        items = db.session.query(Item).where(Item.job_id == job.id).where(
-            Item.status != ItemStatus.TRANSFERRED)
-        items_id = [i.id for i in items]
-
-        if self.n_procs > 1:
-            self.run_parallel(items_id, job_id)
-        else:
-            for item_id in items_id:
-                super().do_one_item(item_id, job_id)
-                db.session.commit()

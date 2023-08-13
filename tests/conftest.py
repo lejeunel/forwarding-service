@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-import hashlib
 import io
-import json
-import os
-import uuid
-from pathlib import Path
 from unittest.mock import patch
 
-import boto3
-import moto
 import pytest
+from app.uploader import BaseWriter
 
 from . import mock_tree
-from app.uploader import BaseWriter
 
 
 class MockWriter(BaseWriter):
     def __call__(self, *args, **kwargs):
         pass
 
+    def refresh_credentials(self):
+        pass
 
-@pytest.fixture()
+
+@pytest.fixture(autouse=True)
 def mock_file_tree():
 
     with mock_tree as m:
@@ -57,7 +53,7 @@ def mock_uploader_setup():
 
 @pytest.fixture
 def app():
-    from app import create_app, fs, db
+    from app import create_app, db, fs
     from app.uploader import FileSystemReader
 
     app = create_app(mode='test')

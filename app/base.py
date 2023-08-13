@@ -24,9 +24,6 @@ class BaseReader(ABC):
     def refresh_credentials(self):
         pass
 
-    def ping(self):
-        pass
-
 
 class BaseWriter(ABC):
     @abstractmethod
@@ -34,7 +31,4 @@ class BaseWriter(ABC):
         pass
 
     def refresh_credentials(self):
-        pass
-
-    def ping(self):
         pass

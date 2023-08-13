@@ -1,39 +1,36 @@
 import enum
 
 
-class ItemStatus(enum.Enum):
+class ItemStatus(enum.IntEnum):
     """Allowed status options.
 
     =============== ====== =======
     Status          Action Result
     =============== ====== =======
     ``PENDING``         Upload N/A
-    ``ONHOLD``      Ignore Ignored
     ``TRANSFERRED`` None   Success
     ``ERROR``       None   Failure
     =============== ====== =======
     """
 
-    PENDING = "PENDING"
-    ONHOLD = "ONHOLD"
-    TRANSFERRED = "TRANSFERRED"
-    ERROR = "ERROR"
+    PENDING = 0
+    TRANSFERRED = 1
 
 
-class JobStatus(enum.Enum):
+class JobStatus(enum.IntEnum):
     """Allowed job status options."""
 
-    INITIATED = "INITIATED"
-    PARSING = "PARSING"
-    PARSED = "PARSED"
-    TRANSFERRING = "TRANSFERRING"
-    DONE = "DONE"
+    INITIATED = 0
+    PARSING = 1
+    PARSED = 2
+    TRANSFERRING = 3
+    DONE = 4
 
 
 class JobError(enum.IntEnum):
 
     NONE = 0
     INIT_ERROR = 1
-    S3_ERROR = 2
+    TRANSFER_ERROR = 2
     CHECKSUM_ERROR = 3
-    VAULT_ERROR = 4
+    AUTH_ERROR = 4
