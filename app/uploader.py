@@ -152,8 +152,6 @@ class UploaderExtension(Uploader):
 
     def init_app(self, app):
 
-        self.source = app.config.get("UPLOADER_SOURCE")
-        self.destination = app.config.get("UPLOADER_DESTINATION")
         self.auth_mode = app.config.get("UPLOADER_AUTH_MODE", None)
         self.do_checksum = app.config.get("UPLOADER_CHECKSUM", False)
         self.n_procs = app.config.get("UPLOADER_N_PROCS", 1)
