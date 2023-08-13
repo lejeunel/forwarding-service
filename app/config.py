@@ -14,7 +14,7 @@ class Config:
     UPLOADER_SOURCE = "filesystem"
     UPLOADER_DESTINATION = "s3"
     UPLOADER_CHECKSUM = True
-    UPLOADER_N_PROCS = 1
+    UPLOADER_N_PROCS = 4
 
     SQLALCHEMY_DATABASE_URI = "sqlite:///items.db"
 

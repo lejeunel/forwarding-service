@@ -25,7 +25,6 @@ class Job(db.Model):
     last_state = db.Column(db.Enum(JobStatus), default=JobStatus.INITIATED)
     error = db.Column(db.Enum(JobError), default=JobError.NONE)
     info = db.Column(db.JSON)
-    user = db.Column(db.String)
     source = db.Column(db.String)
     destination = db.Column(db.String)
     regexp = db.Column(db.String)

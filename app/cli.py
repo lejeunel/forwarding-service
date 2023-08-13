@@ -1,13 +1,8 @@
-import logging
-
 import click
 
 from .worker import _init_and_upload, _resume
 from rich import print
 from .schemas import JobSchema
-
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
 
 @click.command("upload", help="Upload data command")
