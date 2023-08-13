@@ -32,7 +32,7 @@ def mock_bytes(*args, **kwargs):
 def mock_read_file():
 
     with patch(
-        "app.uploader.FileSystemReader.read",
+        "app.file.FileSystemReader.read",
         wraps=mock_bytes,
     ) as m:
         yield m
@@ -44,7 +44,7 @@ def mock_uploader_setup():
         pass
 
     with patch(
-        "app.uploader.UploaderExtension.setup",
+        "app.flask_uploader.UploaderExtension.setup",
         wraps=void,
     ) as m:
         yield m
@@ -53,7 +53,7 @@ def mock_uploader_setup():
 @pytest.fixture
 def app():
     from app import create_app, db, fs
-    from app.uploader import FileSystemReader
+    from app.file import FileSystemReader
 
     app = create_app(mode="test")
     with app.app_context():

@@ -1,19 +1,11 @@
 import hashlib
-import logging
 from base64 import b64encode
+from datetime import datetime
 from multiprocessing import Pool, current_process
-from urllib.parse import urlparse
 
-from decouple import config
-from .exceptions import TransferError, AuthenticationError
-
-from .auth import S3StaticCredentials, VaultCredentials
 from .base import BaseReader, BaseWriter
-from .file import FileSystemReader
-from .s3 import S3Writer
+from .exceptions import AuthenticationError, TransferError
 from .utils import _match_file_extension
-
-logger = logging.getLogger("S3Sender")
 
 
 class Uploader:
@@ -51,27 +43,26 @@ class Uploader:
 
             self.writer(bytes_, out_uri, type_, checksum)
 
-            # TODO set upload_date to now
-            item.status = ItemStatus.TRANSFERRED
-
         except TransferError as e:
             info = {"message": e.message, "operation": e.operation}
             return {
                 "item_id": item.id,
-                "item_status": item.status,
+                "item_status": ItemStatus.PENDING,
+                "item_transferred": None,
                 "job_error": JobError.TRANSFER_ERROR,
                 "job_info": info,
             }
 
         return {
             "item_id": item.id,
-            "item_status": item.status,
+            "item_status": ItemStatus.TRANSFERRED,
+            "item_transferred": datetime.now(),
             "job_error": JobError.NONE,
             "job_info": None,
         }
 
     def run_parallel(self, items_id, job_id):
-        from .models import db, Job, Item
+        from .models import Item, Job, db
 
         list_in_out_uri = [(id, job_id) for id in items_id]
 
@@ -87,14 +78,21 @@ class Uploader:
         job.info = job_error_info[1]
 
         # bulk update item status
-        new_statii = [{"id": r["item_id"], "status": r["item_status"]} for r in results]
+        new_statii = [
+            {
+                "id": r["item_id"],
+                "status": r["item_status"],
+                "transferred": r["item_transferred"],
+            }
+            for r in results
+        ]
         db.session.bulk_update_mappings(Item, new_statii)
 
         db.session.commit()
 
     def run_job(self, job_id):
         from . import db
-        from .enum_types import ItemStatus, JobStatus, JobError
+        from .enum_types import ItemStatus, JobError, JobStatus
         from .models import Item, Job
 
         job = db.session.get(Job, job_id)
@@ -124,6 +122,7 @@ class Uploader:
                 res = self.upload_one_item(item_id, job_id)
                 item = db.session.get(Item, res["item_id"])
                 item.status = res["item_status"]
+                item.transferred = res["item_transferred"]
                 job.error = res["job_error"]
                 job.info = res["job_info"]
                 db.session.commit()
@@ -144,52 +143,3 @@ class Uploader:
     def refresh_credentials(self):
         self.reader.refresh_credentials()
         self.writer.refresh_credentials()
-
-
-class UploaderExtension(Uploader):
-    def __init__(self, app=None):
-        if app is not None:
-            self.init_app(app)
-
-    def init_app(self, app):
-
-        self.auth_mode = app.config.get("UPLOADER_AUTH_MODE", None)
-        self.do_checksum = app.config.get("UPLOADER_CHECKSUM", False)
-        self.n_procs = app.config.get("UPLOADER_N_PROCS", 1)
-
-    def setup(self, source, destination):
-        """
-        Setup reader and writer given URIs. This should be called before run.
-        """
-        from . import db
-        from .models import Job
-
-        in_scheme = urlparse(source).scheme
-        out_scheme = urlparse(destination).scheme
-
-        if in_scheme == "file":
-            self.reader = FileSystemReader()
-        else:
-            raise NotImplementedError
-
-        if out_scheme == "s3":
-            self.authenticator = S3StaticCredentials()
-            if self.auth_mode == "env":
-                creds = {
-                    "aws_access_key_id": config("AWS_ACCESS_KEY_ID"),
-                    "aws_secret_access_key": config("AWS_SECRET_ACCESS_KEY"),
-                }
-                self.authenticator = S3StaticCredentials(**creds)
-            elif self.auth_mode == "profile":
-                self.authenticator = S3StaticCredentials()
-            elif self.auth_mode == "vault":
-                self.authenticator = VaultCredentials(
-                    config("VAULT_URL"),
-                    config("VAULT_TOKEN_PATH"),
-                    config("VAULT_ROLE_ID"),
-                    config("VAULT_SECRET_ID"),
-                )
-
-            self.writer = S3Writer(self.authenticator)
-        else:
-            raise NotImplementedError

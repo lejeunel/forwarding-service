@@ -16,7 +16,7 @@ marshmallow = "^3.19.0"
 flask-sqlalchemy = "^3.0.3"
 sqlalchemy-utils = "^0.40.0"
 marshmallow-sqlalchemy = "^0.29.0"
-flask-marshmallow = "^0.14.0"
+flask-marshmallow = "^0.15"
 rich = "^13.3.2"
 python-decouple = "^3.8"
 
@@ -24,14 +24,11 @@ python-decouple = "^3.8"
 isort = "^5.2.2"
 mypy = "^0.782"
 pytest-flask = "^1.2.0"
-pyright = "*"
-black = "^22.3.0"
-python-language-server = {extras = ["all"], version = "^0.36.2"}
+python-lsp-server = {extras = ["all"], version = "^1.7.4"}
 mock-file-tree = "^1.1.3"
-responses = "^0.22.0"
-pytest-mock = "^3.10.0"
 aws-error-utils = "^2.7.0"
 pytest = "^7.2.2"
+black = "^23.7.0"
 
 [build-system]
 requires = ["poetry-core"]

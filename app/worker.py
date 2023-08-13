@@ -1,8 +1,5 @@
 from datetime import datetime
 
-from aws_error_utils import get_aws_error_info
-from botocore.client import ClientError as BotoClientError
-from hvac.exceptions import VaultError
 from rich import print
 from sqlalchemy.exc import IntegrityError
 
@@ -34,21 +31,17 @@ def _parse_and_commit_items(job_id):
         is_regex=True,
     )
 
-    for uri in uris:
-        item = Item(
+    items = [
+        Item(
             uri=uri,
             status=ItemStatus.PENDING,
-            job_id=str(job.id),
-            creation_date=datetime.now(),
+            job_id=job.id,
+            created=datetime.now(),
         )
-
-        # check for unique constraint (raise IntegrityError)
-        # this should keep existing record
-        try:
-            db.session.add(item)
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
+        for uri in uris
+    ]
+    db.session.add_all(items)
+    db.session.commit()
 
     job.last_state = JobStatus.PARSED
     db.session.commit()
@@ -120,10 +113,11 @@ def _init(source, destination, regexp):
         init_error = True
         messages.append(f"Source directory {source} not found.")
 
-    if ((source[-1] != '/') or (destination[-1] != '/')):
+    if (source[-1] != "/") or (destination[-1] != "/"):
         init_error = True
         messages.append(
-            f"source {source} and destination {destination} must have trailing slashes.")
+            f"source {source} and destination {destination} must have trailing slashes."
+        )
 
     if init_error:
         job.error = JobError.INIT_ERROR
@@ -136,7 +130,7 @@ def _init(source, destination, regexp):
     return job
 
 
-def _init_and_upload(source, destination, regexp='.*'):
+def _init_and_upload(source, destination, regexp=".*"):
     """Main function that performs upload.
 
     Args:
@@ -174,4 +168,4 @@ def _resume(job_id):
         db.session.commit()
         _upload(job.id)
     else:
-        print(f'Job {job_id} already done.')
+        print(f"Job {job_id} already done.")

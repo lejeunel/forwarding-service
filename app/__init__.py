@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 from flask import Flask
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
 
-from app.uploader import UploaderExtension
+from app.flask_uploader import UploaderExtension
 
 db = SQLAlchemy()
 fs = UploaderExtension()

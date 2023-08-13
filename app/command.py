@@ -43,14 +43,14 @@ def get_item_by_query(
     return ItemSchema(many=True).dump(files)
 
 
-def get_job_by_query(id=None, status=None, limit=50, sort_on="creation_date"):
+def get_job_by_query(id=None, status=None, limit=50, sort_on="created"):
     """Return Job representation, with filtering capabilities
 
     Args:
         id (str, optional): Job id filtering. Defaults to None.
         status (str, optional): status filtering. Defaults to None.
         limit (int, optional): limit number of Job. Defaults to 50.
-        sort_on (str, optional): sort job by. Defaults to "creation_date".
+        sort_on (str, optional): sort job by. Defaults to "created".
 
     Returns:
         [JobSchema]: return Job representation in a list

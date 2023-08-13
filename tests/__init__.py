@@ -1,11 +1,7 @@
-from app.worker import _upload
-import uuid
-from mock_file_tree import FileTree, MockFileTree
 import os
+import uuid
 
-user = "test-user"
-bucket = "mybucket"
-
+from mock_file_tree import FileTree, MockFileTree
 
 # dummy file tree for unit test
 # this overrides function of the os module
