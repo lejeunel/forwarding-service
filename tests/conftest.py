@@ -40,7 +40,6 @@ def mock_read_file():
 
 @pytest.fixture(autouse=True)
 def mock_uploader_setup():
-
     def void(*args, **kwargs):
         pass
 
@@ -56,7 +55,7 @@ def app():
     from app import create_app, db, fs
     from app.uploader import FileSystemReader
 
-    app = create_app(mode='test')
+    app = create_app(mode="test")
     with app.app_context():
         fs.reader = FileSystemReader()
         fs.writer = MockWriter()

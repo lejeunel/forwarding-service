@@ -1,4 +1,3 @@
-
 class Config:
     """Base config"""
 
@@ -10,10 +9,10 @@ class Config:
     - env: will use environment variables or .env
     - vault: will fetch credentials from Vault (not finished)
     """
-    UPLOADER_AUTH_MODE = 'profile'
-    UPLOADER_AUTH_PROFILE = 'default'
-    UPLOADER_SOURCE = 'filesystem'
-    UPLOADER_DESTINATION = 's3'
+    UPLOADER_AUTH_MODE = "profile"
+    UPLOADER_AUTH_PROFILE = "default"
+    UPLOADER_SOURCE = "filesystem"
+    UPLOADER_DESTINATION = "s3"
     UPLOADER_CHECKSUM = True
     UPLOADER_N_PROCS = 1
 

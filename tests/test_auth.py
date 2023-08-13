@@ -9,15 +9,14 @@ class MockBadAuthWriter(BaseWriter):
         pass
 
     def refresh_credentials(self):
-        raise AuthenticationError(
-            message='bad auth', operation='authentication')
+        raise AuthenticationError(message="bad auth", operation="authentication")
 
 
 def test_auth_fail(app, mock_file_tree):
 
     from app import fs
+
     with app.app_context():
         fs.writer = MockBadAuthWriter()
-        job = _init_and_upload("file:///root/path/project/",
-                               "s3://bucket/project/")
+        job = _init_and_upload("file:///root/path/project/", "s3://bucket/project/")
         assert job.error == JobError.AUTH_ERROR

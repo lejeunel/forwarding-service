@@ -1,11 +1,8 @@
-import os
 import fnmatch
-from .enum_types import ItemStatus, JobError
-from .models import Item, Job
-from datetime import datetime
-import uuid
-from .utils import filter_table
+
 from sqlalchemy.exc import IntegrityError
+
+from .utils import filter_table
 
 
 def get_item_by_query(
@@ -111,22 +108,20 @@ def add_user(user, bucket, allowed_root_dirs):
         allowed_root_dirs (str): directory path
     """
 
-    from .models import UserBucket
     from . import db
+    from .models import UserBucket
 
     # Search first if user & bucket exist, if true, make an update, else insert
-    is_user = UserBucket.query.filter_by(user=user,
-                                         bucket=bucket,
-                                         allowed_root_dirs=allowed_root_dirs).first()
+    is_user = UserBucket.query.filter_by(
+        user=user, bucket=bucket, allowed_root_dirs=allowed_root_dirs
+    ).first()
 
     # Update part
     if is_user is not None:
         return
     else:
         # Create user instead of update
-        user = UserBucket(user=user,
-                          bucket=bucket,
-                          allowed_root_dirs=allowed_root_dirs)
+        user = UserBucket(user=user, bucket=bucket, allowed_root_dirs=allowed_root_dirs)
         db.session.add(user)
 
         # Save change
@@ -144,12 +139,14 @@ def remove_user(user, bucket, allowed_root_dirs=None):
         bucket (_type_): bucket name
         allowed_root_dirs (_type_, optional): directory path. Defaults to None.
     """
-    from .models import UserBucket
-    from . import db
     from sqlalchemy import delete
 
-    stmt = delete(UserBucket).where(UserBucket.user == user,
-                                    UserBucket.bucket == bucket)
+    from . import db
+    from .models import UserBucket
+
+    stmt = delete(UserBucket).where(
+        UserBucket.user == user, UserBucket.bucket == bucket
+    )
 
     if allowed_root_dirs is not None:
         stmt = stmt.where(UserBucket.allowed_root_dirs == allowed_root_dirs)

@@ -15,8 +15,7 @@ class Item(db.Model):
     uri = db.Column(db.String)
     status = db.Column(db.Enum(ItemStatus))
     job_id = db.Column(UUIDType, sa.ForeignKey("job.id"))
-    creation_date = db.Column(db.DateTime(
-        timezone=True), server_default=func.now())
+    creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
     upload_date = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
@@ -30,5 +29,4 @@ class Job(db.Model):
     source = db.Column(db.String)
     destination = db.Column(db.String)
     regexp = db.Column(db.String)
-    creation_date = db.Column(db.DateTime(
-        timezone=True), server_default=func.now())
+    creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())

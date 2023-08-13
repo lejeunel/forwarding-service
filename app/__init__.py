@@ -11,7 +11,7 @@ fs = UploaderExtension()
 ma = Marshmallow()
 
 
-def create_app(mode='notest'):
+def create_app(mode="notest"):
     """
     Application factory
 
@@ -19,7 +19,7 @@ def create_app(mode='notest'):
     service name defined in docker-compose.yml
     """
 
-    from .cli import (resume, list_item, list_job, upload)
+    from .cli import resume, list_item, list_job, upload
     from .models import Job, Item
 
     app = Flask(__name__)

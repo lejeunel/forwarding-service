@@ -25,7 +25,6 @@ class FileSystemReader(BaseReader):
             return [path]
 
         list_ = [path + f for f in os.listdir(path)]
-        list_ = ['file://' +
-                 f for f in list_ if(os.path.isfile(f) or not files_only)]
+        list_ = ["file://" + f for f in list_ if (os.path.isfile(f) or not files_only)]
 
         return list_

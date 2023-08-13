@@ -32,8 +32,7 @@ class JobSchema(BaseSchema):
         Add information regarding pending transfers
         """
         cur_job = db.session.get(Job, in_data["id"])
-        items = db.session.query(Item).filter(
-            Item.job_id == str(cur_job.id)).all()
+        items = db.session.query(Item).filter(Item.job_id == str(cur_job.id)).all()
 
         total = len(items)
         done = len([f for f in items if f.status == ItemStatus.TRANSFERRED])

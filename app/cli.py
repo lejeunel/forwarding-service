@@ -45,7 +45,5 @@ def list_job(id, status, limit):
 def list_item(source, destination, status, job_id, limit):
     from app.command import get_item_by_query
 
-    res = get_item_by_query(
-        source, destination, status, job_id, limit
-    )
+    res = get_item_by_query(source, destination, status, job_id, limit)
     print(res)

@@ -17,7 +17,9 @@ logger = logging.getLogger("S3Sender")
 
 
 class Uploader:
-    def __init__(self, reader: BaseReader, writer: BaseWriter, do_checksum=True, n_procs=8):
+    def __init__(
+        self, reader: BaseReader, writer: BaseWriter, do_checksum=True, n_procs=8
+    ):
         self.reader = reader
         self.writer = writer
         self.do_checksum = do_checksum
@@ -25,7 +27,6 @@ class Uploader:
 
     @staticmethod
     def compute_sha256_checksum(bytes_):
-        # compute checksum
         checksum = hashlib.sha256(bytes_.getbuffer())
         checksum = b64encode(checksum.digest()).decode()
         return checksum
@@ -40,8 +41,8 @@ class Uploader:
             job = db.session.get(Job, job_id)
 
             in_uri = item.uri
-            out_uri = job.destination + in_uri.split('/')[-1]
-            print(f'[{current_process().pid}] {in_uri} -> {out_uri}')
+            out_uri = job.destination + in_uri.split("/")[-1]
+            print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
             bytes_, type_ = self.reader(item.uri)
 
             checksum = None
@@ -53,10 +54,20 @@ class Uploader:
             item.status = ItemStatus.TRANSFERRED
 
         except TransferError as e:
-            info = {"message": e.message,
-                    "operation": e.operation}
-            return {'item_id': item.id, 'item_status': item.status, 'job_error': JobError.TRANSFER_ERROR, 'job_info': info}
-        return {'item_id': item.id, 'item_status': item.status, 'job_error': JobError.NONE, 'job_info': None}
+            info = {"message": e.message, "operation": e.operation}
+            return {
+                "item_id": item.id,
+                "item_status": item.status,
+                "job_error": JobError.TRANSFER_ERROR,
+                "job_info": info,
+            }
+
+        return {
+            "item_id": item.id,
+            "item_status": item.status,
+            "job_error": JobError.NONE,
+            "job_info": None,
+        }
 
     def run_parallel(self, items_id, job_id):
         from .models import db, Job, Item
@@ -67,15 +78,15 @@ class Uploader:
             results = p.starmap(self.upload_one_item, list_in_out_uri)
 
         # find most critical job error and update db record
-        job_error_info = sorted([(r['job_error'], r['job_info'])
-                                 for r in results], key=lambda t: t[0])[-1]
+        job_error_info = sorted(
+            [(r["job_error"], r["job_info"]) for r in results], key=lambda t: t[0]
+        )[-1]
         job = db.session.get(Job, job_id)
         job.error = job_error_info[0]
         job.info = job_error_info[1]
 
         # bulk update item status
-        new_statii = [{'id': r['item_id'], 'status': r['item_status']}
-                      for r in results]
+        new_statii = [{"id": r["item_id"], "status": r["item_status"]} for r in results]
         db.session.bulk_update_mappings(Item, new_statii)
 
         db.session.commit()
@@ -91,15 +102,18 @@ class Uploader:
             self.refresh_credentials()
         except AuthenticationError as e:
             job.error = JobError.AUTH_ERROR
-            job.info = {'message': e.message, 'operation': e.operation}
+            job.info = {"message": e.message, "operation": e.operation}
             db.session.commit()
             return
 
         job.last_state = JobStatus.TRANSFERRING
 
         # filter-out items that are already transferred (happens on resume)
-        items = db.session.query(Item).where(Item.job_id == job.id).where(
-            Item.status != ItemStatus.TRANSFERRED)
+        items = (
+            db.session.query(Item)
+            .where(Item.job_id == job.id)
+            .where(Item.status != ItemStatus.TRANSFERRED)
+        )
         items_id = [i.id for i in items]
 
         if self.n_procs > 1:
@@ -107,10 +121,10 @@ class Uploader:
         else:
             for item_id in items_id:
                 res = self.upload_one_item(item_id, job_id)
-                item = db.session.get(Item, res['item_id'])
-                item.status = res['item_status']
-                job.error = res['job_error']
-                job.info = res['job_info']
+                item = db.session.get(Item, res["item_id"])
+                item.status = res["item_status"]
+                job.error = res["job_error"]
+                job.info = res["job_info"]
                 db.session.commit()
 
     def src_exists(self, uri):
@@ -119,8 +133,11 @@ class Uploader:
     def src_list(self, uri, files_only=False, pattern_filter="*.*", is_regex=False):
         list_ = self.reader.list(uri, files_only=files_only)
 
-        list_ = [item for item in list_ if _match_file_extension(
-            item, pattern_filter, is_regex)]
+        list_ = [
+            item
+            for item in list_
+            if _match_file_extension(item, pattern_filter, is_regex)
+        ]
         return list_
 
     def refresh_credentials(self):
@@ -135,11 +152,11 @@ class UploaderExtension(Uploader):
 
     def init_app(self, app):
 
-        self.source = app.config.get('UPLOADER_SOURCE')
-        self.destination = app.config.get('UPLOADER_DESTINATION')
-        self.auth_mode = app.config.get('UPLOADER_AUTH_MODE', None)
-        self.do_checksum = app.config.get('UPLOADER_CHECKSUM', False)
-        self.n_procs = app.config.get('UPLOADER_N_PROCS', 1)
+        self.source = app.config.get("UPLOADER_SOURCE")
+        self.destination = app.config.get("UPLOADER_DESTINATION")
+        self.auth_mode = app.config.get("UPLOADER_AUTH_MODE", None)
+        self.do_checksum = app.config.get("UPLOADER_CHECKSUM", False)
+        self.n_procs = app.config.get("UPLOADER_N_PROCS", 1)
 
     def setup(self, source, destination):
         """
@@ -151,22 +168,28 @@ class UploaderExtension(Uploader):
         in_scheme = urlparse(source).scheme
         out_scheme = urlparse(destination).scheme
 
-        if in_scheme == 'file':
+        if in_scheme == "file":
             self.reader = FileSystemReader()
         else:
             raise NotImplementedError
 
-        if out_scheme == 's3':
+        if out_scheme == "s3":
             self.authenticator = S3StaticCredentials()
-            if self.auth_mode == 'env':
-                creds = {'aws_access_key_id': config("AWS_ACCESS_KEY_ID"),
-                         'aws_secret_access_key': config("AWS_SECRET_ACCESS_KEY")}
+            if self.auth_mode == "env":
+                creds = {
+                    "aws_access_key_id": config("AWS_ACCESS_KEY_ID"),
+                    "aws_secret_access_key": config("AWS_SECRET_ACCESS_KEY"),
+                }
                 self.authenticator = S3StaticCredentials(**creds)
-            elif self.auth_mode == 'profile':
+            elif self.auth_mode == "profile":
                 self.authenticator = S3StaticCredentials()
-            elif self.auth_mode == 'vault':
-                self.authenticator = VaultCredentials(config('VAULT_URL'), config('VAULT_TOKEN_PATH'),
-                                                      config('VAULT_ROLE_ID'), config('VAULT_SECRET_ID'))
+            elif self.auth_mode == "vault":
+                self.authenticator = VaultCredentials(
+                    config("VAULT_URL"),
+                    config("VAULT_TOKEN_PATH"),
+                    config("VAULT_ROLE_ID"),
+                    config("VAULT_SECRET_ID"),
+                )
 
             self.writer = S3Writer(self.authenticator)
         else:
