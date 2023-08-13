@@ -3,7 +3,7 @@ from datetime import datetime
 from rich import print
 
 
-def _parse_and_commit_items(job_id):
+def _parse_and_commit_items(job_id:str):
     """Parse items from given job_id
     Save in database all parsed items, information such as location are retrieved from
     from job description
@@ -30,9 +30,9 @@ def _parse_and_commit_items(job_id):
         is_regex=True,
     )
 
-    if job.destination[-1] == '/':
+    if job.destination[-1] == "/":
         # concatenate in_uri name
-        out_uris = [job.destination + in_uri.split('/')[-1] for in_uri in in_uris]
+        out_uris = [job.destination + in_uri.split("/")[-1] for in_uri in in_uris]
     else:
         out_uris = [job.destination]
 
@@ -56,7 +56,7 @@ def _parse_and_commit_items(job_id):
     return db.session.query(Item).filter(Item.job_id == job.id).all()
 
 
-def _upload(job_id):
+def _upload(job_id: str):
     """Run a job
 
     Args:
@@ -86,7 +86,7 @@ def _upload(job_id):
     return job
 
 
-def _init(source, destination, regexp):
+def _init(source: str, destination: str, regexp: str = ".*"):
     """Initialization of job.
     We perform basic checks prior to queueing up.
 
@@ -130,16 +130,8 @@ def _init(source, destination, regexp):
     return job
 
 
-def _init_and_upload(source, destination, regexp=".*"):
-    """Main function that performs upload.
-
-    Args:
-        bucket (str): Bucket destination for s3
-        prefix (str): Prefix for s3 location
-        regexp (str): Regular Expression for filtering file
-        src (str): Source directory where file are stored
-        user (str, optional): _description_. Defaults to "GENERIC".
-    """
+def _init_and_upload(source: str, destination: str, regexp: str = ".*"):
+    """Main function that performs upload."""
     from .enum_types import JobError
 
     job = _init(source, destination, regexp)
@@ -149,7 +141,7 @@ def _init_and_upload(source, destination, regexp=".*"):
     return _upload(job.id)
 
 
-def _resume(job_id):
+def _resume(job_id: str):
     """Resume Job where status is not Done and file is Parsed
 
     Args:
@@ -169,3 +161,5 @@ def _resume(job_id):
         _upload(job.id)
     else:
         print(f"Job {job_id} already done.")
+
+    return job

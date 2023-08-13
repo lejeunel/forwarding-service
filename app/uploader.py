@@ -23,7 +23,15 @@ class Uploader:
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def upload_one_item(self, item_id):
+    def upload_one_item(self, item_id: str):
+        """
+        Upload a single item.
+
+        NOTE: As this function must work across parallel processes, we return
+        a dictionary and update the database from main process. This is because
+        SQLite does not allow write-concurrency, i.e. several processes attempting to
+        write simultaneously to the same DB.
+        """
         from .enum_types import ItemStatus, JobError
         from .models import Item, Job, db
 
@@ -31,7 +39,7 @@ class Uploader:
             item = db.session.get(Item, item_id)
 
             in_uri = item.in_uri
-            out_uri = item.in_uri
+            out_uri = item.out_uri
 
             print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
             bytes_, type_ = self.reader(in_uri)
@@ -43,13 +51,12 @@ class Uploader:
             self.writer(bytes_, out_uri, type_, checksum)
 
         except TransferError as e:
-            info = {"message": e.message, "operation": e.operation}
             return {
                 "item_id": item.id,
                 "item_status": ItemStatus.PENDING,
                 "item_transferred": None,
                 "job_error": JobError.TRANSFER_ERROR,
-                "job_info": info,
+                "job_info": {"message": e.message, "operation": e.operation},
             }
 
         return {
@@ -60,7 +67,7 @@ class Uploader:
             "job_info": None,
         }
 
-    def upload_parallel(self, items_id):
+    def upload_parallel(self, items_id: list[str]):
         from .models import Item, Job, db
 
         with Pool(self.n_procs) as p:
@@ -88,7 +95,7 @@ class Uploader:
 
         db.session.commit()
 
-    def run_job(self, job_id):
+    def run_job(self, job_id: str):
         from . import db
         from .enum_types import ItemStatus, JobError, JobStatus
         from .models import Item, Job
@@ -126,10 +133,16 @@ class Uploader:
                 job.info = res["job_info"]
                 db.session.commit()
 
-    def src_exists(self, uri):
+    def src_exists(self, uri: str):
         return self.reader.exists(uri)
 
-    def src_list(self, uri, files_only=False, pattern_filter="*.*", is_regex=False):
+    def src_list(
+        self,
+        uri: str,
+        files_only: bool = False,
+        pattern_filter: str = "*.*",
+        is_regex: bool = False,
+    ):
         list_ = self.reader.list(uri, files_only=files_only)
 
         list_ = [
