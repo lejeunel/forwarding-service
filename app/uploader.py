@@ -51,6 +51,7 @@ class Uploader:
 
             self.writer(bytes_, out_uri, type_, checksum)
 
+            # TODO set upload_date to now
             item.status = ItemStatus.TRANSFERRED
 
         except TransferError as e:

@@ -7,13 +7,13 @@ class Config:
     Authentication options:
     - profile: will use credentials found in ~/.aws/credentials
     - env: will use environment variables or .env
-    - vault: will fetch credentials from Vault (not finished)
+    - vault: will fetch credentials from Vault (experimental)
     """
     UPLOADER_AUTH_MODE = "profile"
     UPLOADER_CHECKSUM = True
     UPLOADER_N_PROCS = 4
 
-    SQLALCHEMY_DATABASE_URI = "sqlite:///items.db"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///upload.db"
 
 
 class ConfigTest(Config):
