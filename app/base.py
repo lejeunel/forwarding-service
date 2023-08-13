@@ -4,11 +4,15 @@ import mimetypes
 
 class BaseReader(ABC):
     @abstractmethod
-    def read(self, uri):
+    def read(self, *args, **kwargs):
         pass
 
     @abstractmethod
-    def exists(self, uri):
+    def exists(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def list(self, *args, **kwargs):
         pass
 
     @staticmethod

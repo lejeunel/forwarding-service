@@ -1,6 +1,8 @@
 from flask_sqlalchemy.model import DefaultMeta
 import fnmatch
 import re
+import rich
+
 
 
 def filter_table(model: DefaultMeta, **kwargs):

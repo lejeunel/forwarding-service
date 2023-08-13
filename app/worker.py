@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from rich import print
-from sqlalchemy.exc import IntegrityError
 
 
 def _parse_and_commit_items(job_id):
@@ -67,7 +66,6 @@ def _upload(job_id):
 
     job = db.session.get(Job, job_id)
     if job.last_state < JobStatus.PARSED:
-
         _parse_and_commit_items(job_id)
 
     fs.setup(job.source, job.destination)

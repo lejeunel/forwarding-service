@@ -28,7 +28,6 @@ class Uploader:
         from .models import Item, Job, db
 
         try:
-
             item = db.session.get(Item, item_id)
             job = db.session.get(Job, job_id)
 

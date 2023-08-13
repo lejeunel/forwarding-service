@@ -1,8 +1,8 @@
 import click
 
 from .worker import _init_and_upload, _resume
-from rich import print
 from .schemas import JobSchema
+from rich import print
 
 
 @click.command("upload", help="Upload data command")
