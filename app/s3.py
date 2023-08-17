@@ -1,17 +1,17 @@
+from botocore.client import ClientError as BotoClientError
 import boto3
 from .base import BaseWriter
 import copy
 from urllib.parse import urlparse
 from .auth import BaseAuthenticator
 from .exceptions import TransferError
-from botocore.client import ClientError as BotoClientError
 from aws_error_utils import get_aws_error_info
 
 
 class S3Writer(BaseWriter):
     def __init__(self, authenticator=BaseAuthenticator):
-        self.client = boto3.client("s3")
         self.authenticator = authenticator
+        self.client = boto3.client("s3", **self.authenticator())
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -21,6 +21,7 @@ class S3Writer(BaseWriter):
             if k != "client":
                 setattr(result, k, copy.deepcopy(v, memo))
         setattr(result, "client", boto3.client("s3", **self.authenticator()))
+        return result
 
     def __reduce__(self):
         return (self.__class__, (self.authenticator,))
@@ -50,3 +51,4 @@ class S3Writer(BaseWriter):
     def refresh_credentials(self):
         creds = self.authenticator()
         self.client = boto3.client("s3", **creds)
+

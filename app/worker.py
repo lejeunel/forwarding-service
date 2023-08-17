@@ -134,6 +134,7 @@ def _init_and_upload(source: str, destination: str, regexp: str = ".*"):
     """Main function that performs upload."""
     from .enum_types import JobError
 
+    print('initializing job...')
     job = _init(source, destination, regexp)
     if job.error != JobError.NONE:
         return job

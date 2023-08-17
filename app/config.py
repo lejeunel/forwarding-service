@@ -9,7 +9,7 @@ class Config:
     - env: will use environment variables or .env
     - vault: will fetch credentials from Vault (experimental)
     """
-    UPLOADER_AUTH_MODE = "profile"
+    UPLOADER_AUTH_MODE = "env"
     UPLOADER_CHECKSUM = True
     UPLOADER_N_PROCS = 4
 
