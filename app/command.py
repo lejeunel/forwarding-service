@@ -1,12 +1,14 @@
 from .utils import filter_table
 
+
 def get_item_by_query(
+    session,
     source=None,
     destination=None,
     status=None,
     job_id=None,
     limit=50,
-    sort_on="upload_date",
+    sort_on=None,
 ):
     """Return Item representation, with filtering capabilities
 
@@ -25,20 +27,23 @@ def get_item_by_query(
         [ItemSchema]: return files representation in a list
     """
     from .models import Item
-    from .schemas import ItemSchema
 
-    query = filter_table(Item, **locals())
+    query = filter_table(
+        session,
+        Item,
+        **{"job_id": job_id, "status": status, "limit": limit, "sort_on": sort_on}
+    )
     if sort_on is not None:
         field = getattr(Item, sort_on)
         query = query.order_by(field)
 
     query = query.limit(limit)
-    files = query.all()
+    items = query.all()
 
-    return ItemSchema(many=True).dump(files)
+    return [item.to_dict() for item in items]
 
 
-def get_job_by_query(id=None, status=None, limit=50, sort_on="created"):
+def get_job_by_query(session, id=None, status=None, limit=50, sort_on="created"):
     """Return Job representation, with filtering capabilities
 
     Args:
@@ -50,10 +55,11 @@ def get_job_by_query(id=None, status=None, limit=50, sort_on="created"):
     Returns:
         [JobSchema]: return Job representation in a list
     """
-    from .models import Job
-    from .schemas import JobSchema
+    from app.models import Job
 
-    query = filter_table(Job, **locals())
+    query = filter_table(
+        session, Job, **{"id": id, "status": status, "limit": limit, "sort_on": sort_on}
+    )
 
     if sort_on is not None:
         field = getattr(Job, sort_on)
@@ -63,6 +69,4 @@ def get_job_by_query(id=None, status=None, limit=50, sort_on="created"):
 
     jobs = query.all()[::-1]
 
-    return JobSchema(many=True).dump(jobs)
-
-
+    return [job.to_detailed_dict() for job in jobs]

@@ -63,7 +63,7 @@ def tables(engine):
 
 
 @pytest.fixture
-def dbsession(engine, tables):
+def session(engine, tables):
     """Returns an sqlalchemy session, and after the test tears down everything properly."""
     connection = engine.connect()
     # begin the nested transaction
@@ -81,7 +81,7 @@ def dbsession(engine, tables):
 
 
 @pytest.fixture
-def agent(engine, tables, dbsession):
-    agent = TransferAgent(dbsession, reader=MockReader(), writer=MockWriter())
+def agent(engine, tables, session):
+    agent = TransferAgent(session, reader=MockReader(), writer=MockWriter())
 
     yield agent

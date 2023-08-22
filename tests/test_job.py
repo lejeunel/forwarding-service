@@ -60,7 +60,7 @@ def test_single_file_job(agent, n_procs, in_, out_):
 
 # @pytest.mark.parametrize("n_procs", [1, 4])
 @pytest.mark.parametrize("n_procs", [1])
-def test_resume_job(agent, n_procs):
+def test_resume_job(agent, session, n_procs):
     agent.n_procs = n_procs
     job = agent.init_job("file:///root/path/project/", "s3://bucket/project/")
     items = agent.parse_and_commit_items(job.id)
@@ -69,9 +69,11 @@ def test_resume_job(agent, n_procs):
     # simulate failed job with one item pending
     from app.models import Item, Job
     item = job.items[0]
-    item.update(status=ItemStatus.PENDING)
-    job.update(error=JobError.TRANSFER_ERROR,
-               last_state=JobStatus.TRANSFERRING)
+
+    item.status = ItemStatus.PENDING
+    job.error = JobError.TRANSFER_ERROR
+    job.last_state = JobStatus.TRANSFERRING
+    session.commit()
 
     job = agent.resume(job.id)
     assert job.last_state == JobStatus.DONE

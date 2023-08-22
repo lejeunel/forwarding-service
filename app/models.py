@@ -2,18 +2,16 @@ import uuid
 
 import sqlalchemy as sa
 from sqlalchemy import JSON, DateTime, Enum, String
-from sqlalchemy.orm import DeclarativeBase, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+from sqlalchemy_mixins.repr import ReprMixin
+from sqlalchemy_mixins.serialize import SerializeMixin
 from sqlalchemy_utils.types.uuid import UUIDType
 
 from app.enum_types import ItemStatus, JobError, JobStatus
-from sqlalchemy_mixins.serialize import SerializeMixin
-from sqlalchemy_mixins.repr import ReprMixin
-from sqlalchemy_mixins.activerecord import ActiveRecordMixin
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import relationship
 
-class Base(DeclarativeBase, SerializeMixin, ReprMixin, ActiveRecordMixin):
+
+class Base(DeclarativeBase, SerializeMixin, ReprMixin):
     pass
 
 class Item(Base):

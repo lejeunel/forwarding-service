@@ -6,14 +6,13 @@ from multiprocessing import Pool, current_process
 from .base import BaseReader, BaseWriter
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError, TransferError
-from .models import Base
 from .utils import _match_file_extension
 
 
 class TransferAgent:
     def __init__(
         self,
-        dbsession,
+        session,
         reader: BaseReader,
         writer: BaseWriter,
         do_checksum=True,
@@ -23,11 +22,11 @@ class TransferAgent:
         self.writer = writer
         self.do_checksum = do_checksum
         self.n_procs = n_procs
-        self.dbsession = dbsession
+        self.session = session
 
         # this allows active record in this context via mixins
         # https://github.com/absent1706/sqlalchemy-mixins/tree/master#active-record
-        Base.set_session(dbsession)
+        # Base.set_session(session)
 
     @staticmethod
     def compute_sha256_checksum(bytes_):
@@ -48,8 +47,8 @@ class TransferAgent:
         from .models import Item, Job
 
         try:
-            item = Item.find(item_id)
-            job = Job.find(item.job_id)
+            item = self.session.get(Item, item_id)
+            job = self.session.get(Job, item.job_id)
 
             in_uri = item.in_uri
             out_uri = item.out_uri
@@ -84,31 +83,31 @@ class TransferAgent:
         job = JobSchema().load(results[0]["job"])
         items = ItemSchema(many=True).load([r["item"] for r in results])
 
-        self.dbsession.bulk_update_mappings(Item, items)
-        self.dbsession.query(Job).filter(Job.id == job["id"]).update(job)
-        self.dbsession.commit()
+        self.session.bulk_update_mappings(Item, items)
+        self.session.query(Job).filter(Job.id == job["id"]).update(job)
+        self.session.commit()
 
         return job
 
     def upload(self, job_id: str):
         from .models import Item, Job
 
-        job = Job.find(job_id)
+        job = self.session.get(Job, job_id)
 
         try:
             self.refresh_credentials()
         except AuthenticationError as e:
-            job.update(
-                error=JobError.AUTH_ERROR,
-                info={"message": e.message, "operation": e.operation},
-            )
+            job.error = JobError.AUTH_ERROR
+            job.info = {"message": e.message, "operation": e.operation}
+            self.session.commit()
             return job
 
-        job.update(last_state=JobStatus.TRANSFERRING)
+        job.last_state = JobStatus.TRANSFERRING
+        self.session.commit()
 
         # filter-out items that are already transferred (happens on resume)
         items = (
-            self.dbsession.query(Item)
+            self.session.query(Item)
             .where(Item.job_id == job.id)
             .where(Item.status != ItemStatus.TRANSFERRED)
         )
@@ -121,13 +120,19 @@ class TransferAgent:
             for item_id in items_id:
                 res = self.upload_one_item(item_id)
 
-                item = Item.find(res["item"].pop("id"))
-                job = Job.find(res["job"].pop("id"))
-                item.update(**res["item"])
-                job.update(**res["job"])
+                item = self.session.get(Item, res["item"].pop("id"))
+                job = self.session.get(Job, res["job"].pop("id"))
+                item.status = res['item']['status']
+                item.transferred = res['item']['transferred']
+                job.error = res['job']['error']
+                job.info = res['job']['info']
+                self.session.add(item)
+                self.session.add(job)
+                self.session.commit()
 
         if job.error == JobError.NONE:
-            job.update(last_state=JobStatus.DONE)
+            job.last_state = JobStatus.DONE
+            self.session.commit()
 
         return job
 
@@ -176,8 +181,8 @@ class TransferAgent:
             job.info = {"message": messages}
             print(job.error, messages)
 
-        self.dbsession.add(job)
-        self.dbsession.commit()
+        self.session.add(job)
+        self.session.commit()
 
         return job
 
@@ -194,9 +199,9 @@ class TransferAgent:
         """
         from .models import Item, Job
 
-        job = self.dbsession.get(Job, job_id)
+        job = self.session.get(Job, job_id)
         job.last_state = JobStatus.PARSING
-        self.dbsession.commit()
+        self.session.commit()
 
         # parse source
         in_uris = self.parse_source(
@@ -223,13 +228,12 @@ class TransferAgent:
             for in_uri, out_uri in zip(in_uris, out_uris)
         ]
 
-        self.dbsession.add_all(items)
-        self.dbsession.commit()
+        self.session.add_all(items)
 
         job.last_state = JobStatus.PARSED
-        self.dbsession.commit()
+        self.session.commit()
 
-        return self.dbsession.query(Item).filter(Item.job_id == job.id).all()
+        return self.session.query(Item).filter(Item.job_id == job.id).all()
 
     def resume(self, job_id: str):
         """Resume Job where status is not Done and file is Parsed
@@ -240,10 +244,12 @@ class TransferAgent:
         """
         from .models import Job
 
-        job = Job.find(job_id)
+        job = self.session.get(Job, job_id)
 
         if job.last_state < JobStatus.DONE:
-            job.update(error=JobError.NONE, info=None)
+            job.error = error=JobError.NONE
+            job.info = None
+            self.session.commit()
             self.upload(job.id)
         else:
             print(f"Job {job_id} already done.")

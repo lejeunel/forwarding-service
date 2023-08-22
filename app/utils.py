@@ -1,19 +1,20 @@
-from flask_sqlalchemy.model import DefaultMeta
 import fnmatch
 import re
 
+from flask_sqlalchemy.model import DefaultMeta
 
-def filter_table(model: DefaultMeta, **kwargs):
+
+def filter_table(session, model: DefaultMeta, **kwargs):
     """
     Applies filters defined in kwargs on sqlalchemy model.
     Non-matching fields are ignored.
 
     Returns a query
     """
-    query = model.query
 
     # get field names
     fields = model.__table__.columns.keys()
+    query = session.query(model)
 
     for k, v in kwargs.items():
         if (k in fields) and (v is not None):
@@ -45,3 +46,5 @@ def _match_file_extension(filename: str, pattern: str, is_regex=False):
     if match is None:
         return False
     return True
+
+
