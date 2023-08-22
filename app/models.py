@@ -1,32 +1,52 @@
 import uuid
 
 import sqlalchemy as sa
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import JSON, DateTime, Enum, String
+from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import func
 from sqlalchemy_utils.types.uuid import UUIDType
 
-from app.enum_types import ItemStatus, JobStatus, JobError
+from app.enum_types import ItemStatus, JobError, JobStatus
+from sqlalchemy_mixins.serialize import SerializeMixin
+from sqlalchemy_mixins.repr import ReprMixin
+from sqlalchemy_mixins.activerecord import ActiveRecordMixin
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import relationship
 
-from . import db
+class Base(DeclarativeBase, SerializeMixin, ReprMixin, ActiveRecordMixin):
+    pass
+
+class Item(Base):
+    """
+    Each record is an item to transfer
+    """
+    __tablename__ = "item"
+
+    id = mapped_column(UUIDType, primary_key=True, default=uuid.uuid4)
+    in_uri = mapped_column(String)
+    out_uri = mapped_column(String)
+    status = mapped_column(Enum(ItemStatus))
+    job_id = mapped_column(UUIDType, sa.ForeignKey("job.id"))
+    created = mapped_column(DateTime(timezone=True), server_default=func.now())
+    transferred = mapped_column(DateTime(timezone=True), nullable=True)
+    job: Mapped["Job"] = relationship(back_populates="items")
 
 
-class Item(db.Model):
-    id = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
-    in_uri = db.Column(db.String)
-    out_uri = db.Column(db.String)
-    status = db.Column(db.Enum(ItemStatus))
-    job_id = db.Column(UUIDType, sa.ForeignKey("job.id"))
-    created = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    transferred = db.Column(db.DateTime(timezone=True), nullable=True)
 
+class Job(Base):
+    """
+    Each record is a set of items with flags that are
+    helpful to monitor status
+    """
+    __tablename__ = "job"
 
-class Job(db.Model):
+    id = mapped_column(UUIDType, primary_key=True, default=uuid.uuid4)
+    last_state = mapped_column(Enum(JobStatus), default=JobStatus.INITIATED)
+    error = mapped_column(Enum(JobError), default=JobError.NONE)
+    info = mapped_column(JSON)
+    source = mapped_column(String)
+    destination = mapped_column(String)
+    regexp = mapped_column(String)
+    created = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    id = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
-    last_state = db.Column(db.Enum(JobStatus), default=JobStatus.INITIATED)
-    error = db.Column(db.Enum(JobError), default=JobError.NONE)
-    info = db.Column(db.JSON)
-    source = db.Column(db.String)
-    destination = db.Column(db.String)
-    regexp = db.Column(db.String)
-    created = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    items: Mapped[list["Item"]] = relationship(back_populates="job")

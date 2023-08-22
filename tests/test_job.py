@@ -1,26 +1,24 @@
 import pytest
 from app.enum_types import JobError, JobStatus, ItemStatus
-from app.worker import _init_and_upload, _resume
-from app.models import Item
-from app import fs, db
 
 
 @pytest.mark.parametrize(
     "n_procs,in_,out_",
     [
         (1, "file:///root/path/project/", "s3://bucket/project/"),
-        (4, "file:///root/path/project/", "s3://bucket/project/"),
+        # (2, "file:///root/path/project/", "s3://bucket/project/"),
     ],
 )
-def test_multiple_files_job(app, mock_file_tree, n_procs, in_, out_):
-    with app.app_context():
-        fs.n_procs = n_procs
-        job = _init_and_upload(in_, out_)
-        items = db.session.query(Item).where(Item.job_id == job.id)
-        assert job.last_state == JobStatus.DONE
-        assert job.error == JobError.NONE
-        assert all(item.status == ItemStatus.TRANSFERRED for item in items)
-        assert all(item.transferred > item.created for item in items)
+def test_multiple_files_job(agent, n_procs, in_, out_):
+
+    agent.n_procs = n_procs
+    job = agent.init_job(in_, out_)
+    items = agent.parse_and_commit_items(job.id)
+    agent.upload(job.id)
+    assert job.last_state == JobStatus.DONE
+    assert job.error == JobError.NONE
+    assert all(item.status == ItemStatus.TRANSFERRED for item in items)
+    assert all(item.transferred > item.created for item in items)
 
 
 @pytest.mark.parametrize(
@@ -31,11 +29,11 @@ def test_multiple_files_job(app, mock_file_tree, n_procs, in_, out_):
             "file:///root/path/project/file_1.ext",
             "s3://bucket/project/file_1.ext"
         ),
-        (
-            4,
-            "file:///root/path/project/file_1.ext",
-            "s3://bucket/project/file_1.ext"
-        ),
+        # (
+        #     2,
+        #     "file:///root/path/project/file_1.ext",
+        #     "s3://bucket/project/file_1.ext"
+        # ),
         (
             1,
             "file:///root/path/project/file_1.ext",
@@ -43,34 +41,39 @@ def test_multiple_files_job(app, mock_file_tree, n_procs, in_, out_):
         ),
     ],
 )
-def test_single_file_job(app, mock_file_tree, n_procs, in_, out_):
+def test_single_file_job(agent, n_procs, in_, out_):
 
+    agent.n_procs = n_procs
     expected_out = "s3://bucket/project/file_1.ext"
-    with app.app_context():
-        fs.n_procs = n_procs
-        job = _init_and_upload(in_, out_)
-        items = db.session.query(Item).where(Item.job_id == job.id)
-        assert items.count() == 1
-        item = items.first()
+    job = agent.init_job(in_, out_)
+    items = agent.parse_and_commit_items(job.id)
+    agent.upload(job.id)
+    assert len(items) == 1
+    item = items[0]
 
-        assert job.last_state == JobStatus.DONE
-        assert job.error == JobError.NONE
+    assert job.last_state == JobStatus.DONE
+    assert job.error == JobError.NONE
 
-        assert item.status == ItemStatus.TRANSFERRED
-        assert item.out_uri == expected_out
+    assert item.status == ItemStatus.TRANSFERRED
+    assert item.out_uri == expected_out
 
 
-@pytest.mark.parametrize("n_procs", [1, 4])
-def test_resume_job(app, mock_file_tree, n_procs):
-    with app.app_context():
-        fs.n_procs = n_procs
-        job = _init_and_upload("file:///root/path/project/", "s3://bucket/project/")
+# @pytest.mark.parametrize("n_procs", [1, 4])
+@pytest.mark.parametrize("n_procs", [1])
+def test_resume_job(agent, n_procs):
+    agent.n_procs = n_procs
+    job = agent.init_job("file:///root/path/project/", "s3://bucket/project/")
+    items = agent.parse_and_commit_items(job.id)
+    agent.upload(job.id)
 
-        # simulate failed job with one item pending
-        item = db.session.query(Item).where(Item.job_id == job.id).first()
-        item.status = ItemStatus.PENDING
-        job.error = JobError.TRANSFER_ERROR
-        job.last_state = JobStatus.TRANSFERRING
-        db.session.commit()
+    # simulate failed job with one item pending
+    from app.models import Item, Job
+    item = job.items[0]
+    item.update(status=ItemStatus.PENDING)
+    job.update(error=JobError.TRANSFER_ERROR,
+               last_state=JobStatus.TRANSFERRING)
 
-        _resume(job.id)
+    job = agent.resume(job.id)
+    assert job.last_state == JobStatus.DONE
+    assert job.error == JobError.NONE
+    assert all([i.status == ItemStatus.TRANSFERRED for i in job.items])

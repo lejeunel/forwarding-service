@@ -1,11 +1,45 @@
 #!/usr/bin/env python3
 import io
-from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
-from app.uploader import BaseWriter
+from app.base import BaseReader, BaseWriter
+from app.models import Base
+from app.transfer_agent import TransferAgent
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-from . import mock_tree
+
+class MockReader(BaseReader):
+    files = [f for f in ["file_{}.ext".format(i) for i in range(10)]]
+    tree = {"": {"root": {"path": {"project": {"": files}, "otherproject": {"": files}}}}}
+
+    def read(self, *args, **kwargs):
+        return io.BytesIO(bytes("test", "ascii"))
+
+    def exists(self, uri):
+        path = urlparse(uri).path
+        curr = self.tree
+        for node in path.split('/'):
+            if node in curr:
+                curr = curr[node]
+            elif '' in curr and isinstance(curr[''], list):
+                if node in curr['']:
+                    return [node]
+
+            else:
+                return []
+        return curr
+
+
+    def list(self, uri, *args, **kwargs):
+        return self.exists(uri)
+
+    def __call__(self, *args, **kwargs):
+        return self.read(), "image/tiff"
+
+    def refresh_credentials(self):
+        pass
 
 
 class MockWriter(BaseWriter):
@@ -16,52 +50,38 @@ class MockWriter(BaseWriter):
         pass
 
 
-@pytest.fixture(autouse=True)
-def mock_file_tree():
-
-    with mock_tree as m:
-        yield m
+@pytest.fixture(scope="session")
+def engine():
+    return create_engine("sqlite:///")
 
 
-def mock_bytes(*args, **kwargs):
-
-    return io.BytesIO(bytes("test", "ascii"))
-
-
-@pytest.fixture(autouse=True)
-def mock_read_file():
-
-    with patch(
-        "app.file.FileSystemReader.read",
-        wraps=mock_bytes,
-    ) as m:
-        yield m
-
-
-@pytest.fixture(autouse=True)
-def mock_uploader_setup():
-    def void(*args, **kwargs):
-        pass
-
-    with patch(
-        "app.flask_uploader.UploaderExtension.setup",
-        wraps=void,
-    ) as m:
-        yield m
+@pytest.fixture(scope="session")
+def tables(engine):
+    Base.metadata.create_all(engine)
+    yield
+    Base.metadata.drop_all(engine)
 
 
 @pytest.fixture
-def app():
-    from app import create_app, db, fs
-    from app.file import FileSystemReader
+def dbsession(engine, tables):
+    """Returns an sqlalchemy session, and after the test tears down everything properly."""
+    connection = engine.connect()
+    # begin the nested transaction
+    transaction = connection.begin()
+    # use the connection with the already started transaction
+    session = Session(bind=connection)
 
-    app = create_app(mode="test")
-    with app.app_context():
-        fs.reader = FileSystemReader()
-        fs.writer = MockWriter()
+    yield session
 
-        db.create_all()
+    session.close()
+    # roll back the broader transaction
+    transaction.rollback()
+    # put back the connection to the connection pool
+    connection.close()
 
-        yield app
 
-        db.drop_all()
+@pytest.fixture
+def agent(engine, tables, dbsession):
+    agent = TransferAgent(dbsession, reader=MockReader(), writer=MockWriter())
+
+    yield agent

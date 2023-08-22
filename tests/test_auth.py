@@ -1,6 +1,5 @@
-from app.worker import _init_and_upload
 from app.enum_types import JobError
-from app.uploader import BaseWriter
+from app.base import BaseWriter
 from app.exceptions import AuthenticationError
 
 
@@ -12,12 +11,11 @@ class MockBadAuthWriter(BaseWriter):
         raise AuthenticationError(message="bad auth", operation="authentication")
 
 
-def test_auth_fail(app, mock_file_tree):
+def test_auth_fail(agent):
+    agent.writer = MockBadAuthWriter()
+    job = agent.init_job("file:///root/path/project/", "s3://bucket/project/")
+    items = agent.parse_and_commit_items(job.id)
+    job = agent.upload(job.id)
 
-    from app import fs
-
-    with app.app_context():
-        fs.writer = MockBadAuthWriter()
-        job = _init_and_upload("file:///root/path/project/", "s3://bucket/project/")
-        assert job.error == JobError.AUTH_ERROR
-        assert job.info['message'] == 'bad auth'
+    assert job.error == JobError.AUTH_ERROR
+    assert job.info["message"] == "bad auth"
