@@ -25,7 +25,8 @@ class TransferAgent:
         self.n_procs = n_procs
         self.dbsession = dbsession
 
-        # setup active record
+        # this allows active record in this context via mixins
+        # https://github.com/absent1706/sqlalchemy-mixins/tree/master#active-record
         Base.set_session(dbsession)
 
     @staticmethod

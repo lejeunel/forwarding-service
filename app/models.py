@@ -50,3 +50,14 @@ class Job(Base):
     created = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     items: Mapped[list["Item"]] = relationship(back_populates="job")
+
+    def to_detailed_dict(self, *args, **kwargs):
+        ret = super().to_dict()
+        ret['n_items'] = len(self.items)
+        ret['done_item'] = len([i for i in self.items if i.status == ItemStatus.TRANSFERRED])
+        if ret['n_items'] > 0:
+            ret['done_perc'] = '{:.2f}%'.format(100 * ret['done_item'] / ret['n_items'])
+        else:
+            ret['done_perc'] = 'none'
+
+        return ret
