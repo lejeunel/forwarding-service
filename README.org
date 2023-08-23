@@ -1,25 +1,38 @@
-* Resilient data forwarding for AWS S3
+* Resilient data forwarding app
 
 ** Introduction
 
-This small app aims to allow robust and resilient data transfer to cloud storage.
+This lightweight app allows robust and resilient transfer of data from a local filesystem to a remote storage.
+It is specifically designed for large data volumes, where one would like to keep track of accomplished transactions.
+This would then allow to resume the transfer job where it was left off.
+
 As of today, we support local file-system as source, and S3 bucket as destination.
 
-This is useful when working with large volumes of data, since we 
-internally stores all data transactions in a SQLite database to allow resuming.
+Under the hood, this app leverages an SQLite database that stores transactions. In particular,
+each upload job will comprise one or more data items (or files).
 
 ** Installation
+
+This app is packaged using [[https://python-poetry.org/docs/#installation][Poetry]], which you must install first before running the following command from the project's root:
 #+begin_src sh
 poetry install
 #+end_src
 
-
 ** Configuration
 
-See [[file:app/config.py][config.py]] to setup authentication methods and parallelism.
+*** AWS authentication
+
+At run-time, we check for variables ~AWS_ACCESS_KEY_ID~ and ~AWS_SECRET_ACCESS_KEY~ at these locations, and in order of precedence:
+
+1. In your environment variables
+2. In a ~.env~ file located in project's root.
+3. In your ~.aws/credentials~ file as explained [[https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html][here]].
+
 
 ** Usage
 
+We provide a simple CLI that should be self-explanatory:
+
 #+begin_src sh
-flask --help
+python main.py --help
 #+end_src
