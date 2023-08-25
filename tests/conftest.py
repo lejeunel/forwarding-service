@@ -5,8 +5,9 @@ from urllib.parse import urlparse
 import pytest
 from app.base import BaseReader, BaseWriter
 from app.item_uploader import ItemUploader
-from app.models import Base
+from app.models import BaseModel
 from app.transfer_agent import TransferAgent
+from app import make_session
 
 
 class MockReader(BaseReader):
@@ -52,10 +53,11 @@ class MockWriter(BaseWriter):
 @pytest.fixture
 def agent():
     uploader = ItemUploader(reader=MockReader(), writer=MockWriter())
-    agent = TransferAgent(uploader=uploader, db_url='sqlite:///')
+    session = make_session('sqlite:///')
+    agent = TransferAgent(session=session, uploader=uploader)
 
-    Base.metadata.create_all(agent.session.bind.engine)
+    BaseModel.metadata.create_all(agent.session.bind.engine)
 
     yield agent
 
-    Base.metadata.drop_all(agent.session.bind.engine)
+    BaseModel.metadata.drop_all(agent.session.bind.engine)

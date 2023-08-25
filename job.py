@@ -35,10 +35,11 @@ def resume(id: Annotated[str, typer.Argument()],
 def ls(
     id: Annotated[str, typer.Option()] = None,
     status: Annotated[str, typer.Option()] = None,
+    error: Annotated[str, typer.Option()] = None,
     limit: Annotated[str, typer.Option()] = None,
 ):
     session = make_session()
-    res = get_job_by_query(session, id=id, status=status, limit=limit)
+    res = get_job_by_query(session, id=id, status=status, limit=limit, error=error)
     print(res)
 
 if __name__ == "__main__":

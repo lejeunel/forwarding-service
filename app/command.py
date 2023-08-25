@@ -1,4 +1,21 @@
 from .utils import filter_table
+from .models import Item
+from .enum_types import ItemStatus, JobStatus, JobError
+
+
+def check_field_exists(model, field):
+    if field:
+        fields = [c.name for c in model.__table__.columns]
+        assert (
+            field in fields
+        ), f"field {field} does not exist in {model.__name__}. Select one of {fields}"
+
+
+def check_enum(enum_class, value):
+    if value:
+        assert (
+            value in enum_class._member_map_
+        ), f"{value} does not exist in {enum_class.__name__}. Select one of {enum_class._member_names_}"
 
 
 def get_item_by_query(
@@ -26,12 +43,14 @@ def get_item_by_query(
     Returns:
         [ItemSchema]: return files representation in a list
     """
-    from .models import Item
+
+    check_field_exists(Item, sort_on)
+    check_enum(ItemStatus, status)
 
     query = filter_table(
         session,
         Item,
-        **{"job_id": job_id, "status": status, "limit": limit, "sort_on": sort_on}
+        **{"job_id": job_id, "status": status, "limit": limit, "sort_on": sort_on},
     )
     if sort_on is not None:
         field = getattr(Item, sort_on)
@@ -43,7 +62,7 @@ def get_item_by_query(
     return [item.to_dict() for item in items]
 
 
-def get_job_by_query(session, id=None, status=None, limit=50, sort_on="created"):
+def get_job_by_query(session, id=None, status=None, error=None, limit=50, sort_on=None):
     """Return Job representation, with filtering capabilities
 
     Args:
@@ -57,8 +76,20 @@ def get_job_by_query(session, id=None, status=None, limit=50, sort_on="created")
     """
     from app.models import Job
 
+    check_field_exists(Job, sort_on)
+    check_enum(JobStatus, status)
+    check_enum(JobError, error)
+
     query = filter_table(
-        session, Job, **{"id": id, "status": status, "limit": limit, "sort_on": sort_on}
+        session,
+        Job,
+        **{
+            "id": id,
+            "status": status,
+            "error": error,
+            "limit": limit,
+            "sort_on": sort_on,
+        },
     )
 
     if sort_on is not None:

@@ -4,7 +4,7 @@ from decouple import config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base
+from app.models import BaseModel
 
 
 def make_session(db_url: str = None):
@@ -17,6 +17,6 @@ def make_session(db_url: str = None):
     engine = create_engine(f"sqlite:///{db_url}")
     Session = sessionmaker(bind=engine)
     session = Session()
-    Base.metadata.create_all(session.bind.engine)
+    BaseModel.metadata.create_all(session.bind.engine)
 
     return session

@@ -29,11 +29,6 @@ class ItemUploader:
     def upload(self, in_uri: str, out_uri: str):
         """
         Upload a single item.
-
-        NOTE: As this function must work across parallel processes, we return
-        deserialized objects and update the database from main process. This is because
-        SQLite does not allow write-concurrency, i.e. several processes attempting to
-        write simultaneously to the same DB.
         """
         try:
             print(f"[{current_process().pid}] {in_uri} -> {out_uri}")

@@ -14,7 +14,7 @@ from .s3 import S3Writer
 from .utils import _match_file_extension
 
 
-def make_agent(n_procs: int = 1):
+def make_agent(db_url:str = None, n_procs: int = 1):
     auth = S3StaticCredentials(
         aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
         aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
@@ -22,47 +22,45 @@ def make_agent(n_procs: int = 1):
     writer = S3Writer(auth)
     uploader = ItemUploader(reader=FileSystemReader(), writer=writer)
 
-    db_url = config("FORW_SERV_DB_PATH", None)
-    agent = TransferAgent(uploader=uploader, db_url=db_url, n_procs=n_procs)
+    session = make_session(db_url)
+    agent = TransferAgent(
+        session=session, uploader=uploader, n_procs=n_procs
+    )
 
     return agent
+
 
 class TransferAgent:
     def __init__(
         self,
+        session,
         uploader: ItemUploader,
-        db_url: str,
-        n_procs=1,
+        n_procs:int =1,
     ):
         self.uploader = uploader
         self.n_procs = n_procs
-        self.db_url = db_url
-        self.session = make_session(self.db_url)
+        self.session = session
 
     def upload_parallel(self, items: list[Item]):
-
-
         in_out_uris = [(i.in_uri, i.out_uri) for i in items]
         with Pool(self.n_procs) as p:
             results = p.starmap(self.uploader.upload, in_out_uris)
 
         job_meta = sorted([r["job"] for r in results], key=lambda r: r["error"])[-1]
         job = self.session.get(Job, items[0].job_id)
-        job.error = job_meta['error']
-        job.info = job_meta['info']
+        job.error = job_meta["error"]
+        job.info = job_meta["info"]
 
         # TODO should be bulk update here
         for item, res in zip(items, results):
-            item.status = res['item']['status']
-            item.transferred = res['item']['transferred']
-
+            item.status = res["item"]["status"]
+            item.transferred = res["item"]["transferred"]
 
         self.session.commit()
 
         return job
 
     def upload(self, job_id: str):
-
         job = self.session.get(Job, job_id)
 
         try:
@@ -220,4 +218,3 @@ class TransferAgent:
             print(f"Job {job_id} already done.")
 
         return job
-

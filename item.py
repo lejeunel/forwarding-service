@@ -13,11 +13,12 @@ def ls(
     destination: Annotated[str, typer.Option()] = None,
     limit: Annotated[str, typer.Option()] = None,
     status: Annotated[str, typer.Option()] = None,
+    sort_on: Annotated[str, typer.Option()] = None,
 ):
     from app.command import get_item_by_query
 
     session = make_session()
-    res = get_item_by_query(session, source, destination, status, job_id, limit)
+    res = get_item_by_query(session, source, destination, status, job_id, limit, sort_on)
     print(res)
 
 if __name__ == "__main__":

@@ -11,10 +11,10 @@ from sqlalchemy_utils.types.uuid import UUIDType
 from app.enum_types import ItemStatus, JobError, JobStatus
 
 
-class Base(DeclarativeBase, SerializeMixin, ReprMixin):
+class BaseModel(DeclarativeBase, SerializeMixin, ReprMixin):
     pass
 
-class Item(Base):
+class Item(BaseModel):
     """
     Each record is an item to transfer
     """
@@ -31,7 +31,7 @@ class Item(Base):
 
 
 
-class Job(Base):
+class Job(BaseModel):
     """
     Each record is a set of items with flags that are
     helpful to monitor status
