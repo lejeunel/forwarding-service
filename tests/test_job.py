@@ -71,7 +71,7 @@ def test_resume_job(agent, n_procs):
 
     item.status = ItemStatus.PENDING
     job.error = JobError.TRANSFER_ERROR
-    job.last_state = JobStatus.TRANSFERRING
+    job.last_state = JobStatus.PARSED
     agent.session.commit()
 
     job = agent.resume(job.id)

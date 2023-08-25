@@ -16,7 +16,7 @@ def upload(
     regexp: Annotated[str, typer.Option()] = ".*",
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    agent = make_agent(n_procs)
+    agent = make_agent(n_procs=n_procs)
     job = agent.init_job(source, destination, regexp)
     print('created job', job.to_detailed_dict())
     agent.parse_and_commit_items(job.id)

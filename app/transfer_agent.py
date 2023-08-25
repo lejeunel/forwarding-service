@@ -22,6 +22,7 @@ def make_agent(db_url:str = None, n_procs: int = 1):
     writer = S3Writer(auth)
     uploader = ItemUploader(reader=FileSystemReader(), writer=writer)
 
+    breakpoint()
     session = make_session(db_url)
     agent = TransferAgent(
         session=session, uploader=uploader, n_procs=n_procs
@@ -70,9 +71,6 @@ class TransferAgent:
             job.info = {"message": e.message, "operation": e.operation}
             self.session.commit()
             return job
-
-        job.last_state = JobStatus.TRANSFERRING
-        self.session.commit()
 
         # filter-out items that are already transferred (happens on resume)
         items = (
@@ -163,8 +161,6 @@ class TransferAgent:
         from .models import Item, Job
 
         job = self.session.get(Job, job_id)
-        job.last_state = JobStatus.PARSING
-        self.session.commit()
 
         # parse source
         in_uris = self.parse_source(
@@ -210,7 +206,7 @@ class TransferAgent:
         job = self.session.get(Job, job_id)
 
         if job.last_state < JobStatus.DONE:
-            job.error = error = JobError.NONE
+            job.error = JobError.NONE
             job.info = None
             self.session.commit()
             self.upload(job.id)

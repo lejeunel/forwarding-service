@@ -53,7 +53,7 @@ class MockWriter(BaseWriter):
 @pytest.fixture
 def agent():
     uploader = ItemUploader(reader=MockReader(), writer=MockWriter())
-    session = make_session('sqlite:///')
+    session = make_session('sqlite://')
     agent = TransferAgent(session=session, uploader=uploader)
 
     BaseModel.metadata.create_all(agent.session.bind.engine)

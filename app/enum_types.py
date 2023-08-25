@@ -21,10 +21,8 @@ class JobStatus(enum.IntEnum):
     """Allowed job status options."""
 
     INITIATED = 0
-    PARSING = 1
-    PARSED = 2
-    TRANSFERRING = 3
-    DONE = 4
+    PARSED = 1
+    DONE = 2
 
 
 class JobError(enum.IntEnum):
