@@ -4,11 +4,9 @@ from urllib.parse import urlparse
 
 import pytest
 from app.base import BaseReader, BaseWriter
+from app.item_uploader import ItemUploader
 from app.models import Base
 from app.transfer_agent import TransferAgent
-from app.item_uploader import ItemUploader
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 
 class MockReader(BaseReader):

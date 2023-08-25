@@ -1,13 +1,13 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
+from app import make_session
 
-from app import make_agent
 
 app = typer.Typer()
 
 @app.command()
-def list(
+def ls(
     job_id: Annotated[str, typer.Option()] = None,
     source: Annotated[str, typer.Option()] = None,
     destination: Annotated[str, typer.Option()] = None,
@@ -16,8 +16,8 @@ def list(
 ):
     from app.command import get_item_by_query
 
-    agent = make_agent()
-    res = get_item_by_query(agent.session, source, destination, status, job_id, limit)
+    session = make_session()
+    res = get_item_by_query(session, source, destination, status, job_id, limit)
     print(res)
 
 if __name__ == "__main__":

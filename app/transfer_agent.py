@@ -1,19 +1,31 @@
 from datetime import datetime
 from multiprocessing import Pool
-from pathlib import Path
 
 from decouple import config
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
 
-from .base import BaseReader
+from . import make_session
+from .auth import S3StaticCredentials
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError
+from .file import FileSystemReader
 from .item_uploader import ItemUploader
+from .models import Item, Job
+from .s3 import S3Writer
 from .utils import _match_file_extension
-from .models import Item
 
+
+def make_agent(n_procs: int = 1):
+    auth = S3StaticCredentials(
+        aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
+        aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
+    )
+    writer = S3Writer(auth)
+    uploader = ItemUploader(reader=FileSystemReader(), writer=writer)
+
+    db_url = config("FORW_SERV_DB_PATH", None)
+    agent = TransferAgent(uploader=uploader, db_url=db_url, n_procs=n_procs)
+
+    return agent
 
 class TransferAgent:
     def __init__(
@@ -25,24 +37,9 @@ class TransferAgent:
         self.uploader = uploader
         self.n_procs = n_procs
         self.db_url = db_url
-        self.session = self.make_session(self.db_url)
-
-    @staticmethod
-    def make_session(db_url):
-        if db_url is None:
-            db_path = Path(
-                config("FORW_SERV_DB_PATH", "~/.cache/forwarding_service.db")
-            ).expanduser()
-            assert db_path.parent.exists(), f"{db_path.parent} not found."
-
-        engine = create_engine(db_url)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        return session
+        self.session = make_session(self.db_url)
 
     def upload_parallel(self, items: list[Item]):
-        from .models import Item, Job
 
 
         in_out_uris = [(i.in_uri, i.out_uri) for i in items]
@@ -65,7 +62,6 @@ class TransferAgent:
         return job
 
     def upload(self, job_id: str):
-        from .models import Item, Job
 
         job = self.session.get(Job, job_id)
 
@@ -225,6 +221,3 @@ class TransferAgent:
 
         return job
 
-
-if __name__ == "__main__":
-    agent = TransferAgent(Session(), BaseReader())

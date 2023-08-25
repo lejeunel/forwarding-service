@@ -1,9 +1,10 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
+from app import make_session
 
 from app.command import get_job_by_query
-from app import make_agent
+from app.transfer_agent import make_agent
 
 app = typer.Typer()
 
@@ -15,7 +16,7 @@ def upload(
     regexp: Annotated[str, typer.Option()] = ".*",
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    agent = make_agent()
+    agent = make_agent(n_procs)
     job = agent.init_job(source, destination, regexp)
     print('created job', job.to_detailed_dict())
     agent.parse_and_commit_items(job.id)
@@ -31,12 +32,12 @@ def resume(id: Annotated[str, typer.Argument()],
 
 
 @app.command()
-def list(
+def ls(
     id: Annotated[str, typer.Option()] = None,
     status: Annotated[str, typer.Option()] = None,
     limit: Annotated[str, typer.Option()] = None,
 ):
-    session = setup_db()
+    session = make_session()
     res = get_job_by_query(session, id=id, status=status, limit=limit)
     print(res)
 
