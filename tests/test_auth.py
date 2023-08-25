@@ -12,7 +12,7 @@ class MockBadAuthWriter(BaseWriter):
 
 
 def test_auth_fail(agent):
-    agent.writer = MockBadAuthWriter()
+    agent.uploader.writer = MockBadAuthWriter()
     job = agent.init_job("file:///root/path/project/", "s3://bucket/project/")
     items = agent.parse_and_commit_items(job.id)
     job = agent.upload(job.id)

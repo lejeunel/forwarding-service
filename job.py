@@ -3,7 +3,7 @@ from rich import print
 from typing_extensions import Annotated
 
 from app.command import get_job_by_query
-from app import make_agent, setup_db
+from app import make_agent
 
 app = typer.Typer()
 
@@ -15,15 +15,13 @@ def upload(
     regexp: Annotated[str, typer.Option()] = ".*",
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    agent, session = make_agent()
+    agent = make_agent()
     job = agent.init_job(source, destination, regexp)
     print('created job', job.to_detailed_dict())
     agent.parse_and_commit_items(job.id)
     print('parsed job', job.to_detailed_dict())
     job = agent.upload(job.id)
     print('finished job', job.to_detailed_dict())
-
-    session.close()
 
 @app.command()
 def resume(id: Annotated[str, typer.Argument()],

@@ -8,8 +8,7 @@ This would then allow to resume the transfer job where it was left off.
 
 As of today, we support local file-system as source, and S3 bucket as destination.
 
-Under the hood, this app leverages an SQLite database that stores transactions. In particular,
-each upload job will comprise one or more data items (or files).
+Under the hood, this app leverages an SQLite database that stores transactions. In particular, each upload job will comprise one or more data items (or files).
 
 ** Installation
 

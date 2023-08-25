@@ -6,7 +6,7 @@ from app.enum_types import JobError, JobStatus, ItemStatus
     "n_procs,in_,out_",
     [
         (1, "file:///root/path/project/", "s3://bucket/project/"),
-        # (2, "file:///root/path/project/", "s3://bucket/project/"),
+        (2, "file:///root/path/project/", "s3://bucket/project/"),
     ],
 )
 def test_multiple_files_job(agent, n_procs, in_, out_):
@@ -29,11 +29,11 @@ def test_multiple_files_job(agent, n_procs, in_, out_):
             "file:///root/path/project/file_1.ext",
             "s3://bucket/project/file_1.ext"
         ),
-        # (
-        #     2,
-        #     "file:///root/path/project/file_1.ext",
-        #     "s3://bucket/project/file_1.ext"
-        # ),
+        (
+            2,
+            "file:///root/path/project/file_1.ext",
+            "s3://bucket/project/file_1.ext"
+        ),
         (
             1,
             "file:///root/path/project/file_1.ext",
@@ -58,9 +58,8 @@ def test_single_file_job(agent, n_procs, in_, out_):
     assert item.out_uri == expected_out
 
 
-# @pytest.mark.parametrize("n_procs", [1, 4])
-@pytest.mark.parametrize("n_procs", [1])
-def test_resume_job(agent, session, n_procs):
+@pytest.mark.parametrize("n_procs", [1, 4])
+def test_resume_job(agent, n_procs):
     agent.n_procs = n_procs
     job = agent.init_job("file:///root/path/project/", "s3://bucket/project/")
     items = agent.parse_and_commit_items(job.id)
@@ -73,7 +72,7 @@ def test_resume_job(agent, session, n_procs):
     item.status = ItemStatus.PENDING
     job.error = JobError.TRANSFER_ERROR
     job.last_state = JobStatus.TRANSFERRING
-    session.commit()
+    agent.session.commit()
 
     job = agent.resume(job.id)
     assert job.last_state == JobStatus.DONE

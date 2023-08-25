@@ -6,6 +6,7 @@ import pytest
 from app.base import BaseReader, BaseWriter
 from app.models import Base
 from app.transfer_agent import TransferAgent
+from app.item_uploader import ItemUploader
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -50,38 +51,13 @@ class MockWriter(BaseWriter):
         pass
 
 
-@pytest.fixture(scope="session")
-def engine():
-    return create_engine("sqlite:///")
-
-
-@pytest.fixture(scope="session")
-def tables(engine):
-    Base.metadata.create_all(engine)
-    yield
-    Base.metadata.drop_all(engine)
-
-
 @pytest.fixture
-def session(engine, tables):
-    """Returns an sqlalchemy session, and after the test tears down everything properly."""
-    connection = engine.connect()
-    # begin the nested transaction
-    transaction = connection.begin()
-    # use the connection with the already started transaction
-    session = Session(bind=connection)
+def agent():
+    uploader = ItemUploader(reader=MockReader(), writer=MockWriter())
+    agent = TransferAgent(uploader=uploader, db_url='sqlite:///')
 
-    yield session
-
-    session.close()
-    # roll back the broader transaction
-    transaction.rollback()
-    # put back the connection to the connection pool
-    connection.close()
-
-
-@pytest.fixture
-def agent(engine, tables, session):
-    agent = TransferAgent(session, reader=MockReader(), writer=MockWriter())
+    Base.metadata.create_all(agent.session.bind.engine)
 
     yield agent
+
+    Base.metadata.drop_all(agent.session.bind.engine)

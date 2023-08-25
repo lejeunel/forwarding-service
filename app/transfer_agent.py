@@ -1,90 +1,65 @@
-import hashlib
-from base64 import b64encode
 from datetime import datetime
-from multiprocessing import Pool, current_process
+from multiprocessing import Pool
+from pathlib import Path
 
-from .base import BaseReader, BaseWriter
+from decouple import config
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.session import Session
+
+from .base import BaseReader
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import AuthenticationError, TransferError
+from .exceptions import AuthenticationError
+from .item_uploader import ItemUploader
 from .utils import _match_file_extension
+from .models import Item
 
 
 class TransferAgent:
     def __init__(
         self,
-        session,
-        reader: BaseReader,
-        writer: BaseWriter,
-        do_checksum=True,
+        uploader: ItemUploader,
+        db_url: str,
         n_procs=1,
     ):
-        self.reader = reader
-        self.writer = writer
-        self.do_checksum = do_checksum
+        self.uploader = uploader
         self.n_procs = n_procs
-        self.session = session
-
-        # this allows active record in this context via mixins
-        # https://github.com/absent1706/sqlalchemy-mixins/tree/master#active-record
-        # Base.set_session(session)
+        self.db_url = db_url
+        self.session = self.make_session(self.db_url)
 
     @staticmethod
-    def compute_sha256_checksum(bytes_):
-        checksum = hashlib.sha256(bytes_.getbuffer())
-        checksum = b64encode(checksum.digest()).decode()
-        return checksum
+    def make_session(db_url):
+        if db_url is None:
+            db_path = Path(
+                config("FORW_SERV_DB_PATH", "~/.cache/forwarding_service.db")
+            ).expanduser()
+            assert db_path.parent.exists(), f"{db_path.parent} not found."
 
-    def upload_one_item(self, item_id: str):
-        """
-        Upload a single item.
+        engine = create_engine(db_url)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
-        NOTE: As this function must work across parallel processes, we return
-        deserialized objects and update the database from main process. This is because
-        SQLite does not allow write-concurrency, i.e. several processes attempting to
-        write simultaneously to the same DB.
-        """
-        from .enum_types import ItemStatus, JobError
+        return session
+
+    def upload_parallel(self, items: list[Item]):
         from .models import Item, Job
 
-        try:
-            item = self.session.get(Item, item_id)
-            job = self.session.get(Job, item.job_id)
 
-            in_uri = item.in_uri
-            out_uri = item.out_uri
-
-            print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
-            bytes_, type_ = self.reader(in_uri)
-
-            checksum = None
-            if self.do_checksum:
-                checksum = self.compute_sha256_checksum(bytes_)
-
-            self.writer(bytes_, out_uri, type_, checksum)
-
-        except TransferError as e:
-            item.status = ItemStatus.PENDING
-            job.error = JobError.TRANSFER_ERROR
-            job.info = {"message": e.message, "operation": e.operation}
-            return {"item": item.to_dict(), "job": job.to_dict()}
-
-        item.status = ItemStatus.TRANSFERRED
-        item.transferred = datetime.now()
-        job.error = JobError.NONE
-        return {"item": item.to_dict(), "job": job.to_dict()}
-
-    def upload_parallel(self, items_id: list[str]):
-        from .models import Item, Job
-
+        in_out_uris = [(i.in_uri, i.out_uri) for i in items]
         with Pool(self.n_procs) as p:
-            results = p.map(self.upload_one_item, items_id)
+            results = p.starmap(self.uploader.upload, in_out_uris)
 
-        job = sorted([r["job"] for r in results], key=lambda r: r["error"])[-1]
-        job = JobSchema().load(results[0]["job"])
-        items = ItemSchema(many=True).load([r["item"] for r in results])
+        job_meta = sorted([r["job"] for r in results], key=lambda r: r["error"])[-1]
+        job = self.session.get(Job, items[0].job_id)
+        job.error = job_meta['error']
+        job.info = job_meta['info']
 
-        self.session.bulk_update_mappings(Item, items)
-        self.session.query(Job).filter(Job.id == job["id"]).update(job)
+        # TODO should be bulk update here
+        for item, res in zip(items, results):
+            item.status = res['item']['status']
+            item.transferred = res['item']['transferred']
+
+
         self.session.commit()
 
         return job
@@ -95,7 +70,7 @@ class TransferAgent:
         job = self.session.get(Job, job_id)
 
         try:
-            self.refresh_credentials()
+            self.uploader.refresh_credentials()
         except AuthenticationError as e:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.message, "operation": e.operation}
@@ -111,21 +86,19 @@ class TransferAgent:
             .where(Item.job_id == job.id)
             .where(Item.status != ItemStatus.TRANSFERRED)
         )
-        items_id = [i.id for i in items]
 
         if self.n_procs > 1:
-            self.n_procs = min(self.n_procs, len(items_id))
-            job = self.upload_parallel(items_id)
+            self.n_procs = min(self.n_procs, len(items.all()))
+            job = self.upload_parallel(items.all())
         else:
-            for item_id in items_id:
-                res = self.upload_one_item(item_id)
+            for item in items:
+                res = self.uploader.upload(item.in_uri, item.out_uri)
 
-                item = self.session.get(Item, res["item"].pop("id"))
-                job = self.session.get(Job, res["job"].pop("id"))
-                item.status = res['item']['status']
-                item.transferred = res['item']['transferred']
-                job.error = res['job']['error']
-                job.info = res['job']['info']
+                job = self.session.get(Job, item.job_id)
+                item.status = res["item"]["status"]
+                item.transferred = res["item"]["transferred"]
+                job.error = res["job"]["error"]
+                job.info = res["job"]["info"]
                 self.session.add(item)
                 self.session.add(job)
                 self.session.commit()
@@ -137,7 +110,7 @@ class TransferAgent:
         return job
 
     def src_exists(self, uri: str):
-        return self.reader.exists(uri)
+        return self.uploader.reader.exists(uri)
 
     def parse_source(
         self,
@@ -146,7 +119,7 @@ class TransferAgent:
         pattern_filter: str = "*.*",
         is_regex: bool = False,
     ):
-        list_ = self.reader.list(uri, files_only=files_only)
+        list_ = self.uploader.reader.list(uri, files_only=files_only)
 
         list_ = [
             item
@@ -154,10 +127,6 @@ class TransferAgent:
             if _match_file_extension(item, pattern_filter, is_regex)
         ]
         return list_
-
-    def refresh_credentials(self):
-        self.reader.refresh_credentials()
-        self.writer.refresh_credentials()
 
     def init_job(self, source: str, destination: str, regexp: str = ".*"):
         from .enum_types import JobError
@@ -247,7 +216,7 @@ class TransferAgent:
         job = self.session.get(Job, job_id)
 
         if job.last_state < JobStatus.DONE:
-            job.error = error=JobError.NONE
+            job.error = error = JobError.NONE
             job.info = None
             self.session.commit()
             self.upload(job.id)
@@ -255,3 +224,7 @@ class TransferAgent:
             print(f"Job {job_id} already done.")
 
         return job
+
+
+if __name__ == "__main__":
+    agent = TransferAgent(Session(), BaseReader())

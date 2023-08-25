@@ -1,7 +1,8 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
-from app import setup_db
+
+from app import make_agent
 
 app = typer.Typer()
 
@@ -15,8 +16,8 @@ def list(
 ):
     from app.command import get_item_by_query
 
-    session = setup_db()
-    res = get_item_by_query(session, source, destination, status, job_id, limit)
+    agent = make_agent()
+    res = get_item_by_query(agent.session, source, destination, status, job_id, limit)
     print(res)
 
 if __name__ == "__main__":
