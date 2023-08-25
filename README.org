@@ -4,7 +4,7 @@
 
 This lightweight app allows robust and resilient transfer of data from a local filesystem to a remote storage.
 It is specifically designed for large data volumes, where one would like to keep track of accomplished transactions.
-This would then allow to resume the transfer job where it was left off.
+This would then allow to resume the transfer job where it was left off in case of failure.
 
 As of today, we support local file-system as source, and S3 bucket as destination.
 
@@ -27,6 +27,14 @@ At run-time, we check for variables ~AWS_ACCESS_KEY_ID~ and ~AWS_SECRET_ACCESS_K
 2. In a ~.env~ file located in project's root.
 3. In your ~.aws/credentials~ file as explained [[https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html][here]].
 
+***  Local database
+
+Set the location of the local database file with environment variable ~FORW_SERV_DB_PATH~, e.g.
+#+begin_src sh
+FORW_SERV_DB_PATH=/path/to/forwarding_service.db
+#+end_src
+
+The default value is ~$HOME/.cache/forwarding_service.db~.
 
 ** Usage
 
