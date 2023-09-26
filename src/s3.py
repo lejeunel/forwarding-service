@@ -51,4 +51,3 @@ class S3Writer(BaseWriter):
     def refresh_credentials(self):
         creds = self.authenticator()
         self.client = boto3.client("s3", **creds)
-

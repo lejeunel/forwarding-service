@@ -8,7 +8,7 @@ from sqlalchemy_mixins.repr import ReprMixin
 from sqlalchemy_mixins.serialize import SerializeMixin
 from sqlalchemy_utils.types.uuid import UUIDType
 
-from app.enum_types import ItemStatus, JobError, JobStatus
+from .enum_types import ItemStatus, JobError, JobStatus
 
 
 class BaseModel(DeclarativeBase, SerializeMixin, ReprMixin):

@@ -8,44 +8,41 @@ from .auth import S3StaticCredentials
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError
 from .file import FileSystemReader
-from .item_uploader import ItemUploader
 from .models import Item, Job
+from .reader_writer import ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
 
 
-def make_agent(db_url:str = None, n_procs: int = 1):
+def make_job_manager(db_url: str = None, n_procs: int = 1):
     auth = S3StaticCredentials(
         aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
         aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
     )
     writer = S3Writer(auth)
-    uploader = ItemUploader(reader=FileSystemReader(), writer=writer)
+    rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
 
-    breakpoint()
     session = make_session(db_url)
-    agent = TransferAgent(
-        session=session, uploader=uploader, n_procs=n_procs
-    )
+    job_manager = JobManager(session=session, reader_writer=rw, n_procs=n_procs)
 
-    return agent
+    return job_manager
 
 
-class TransferAgent:
+class JobManager:
     def __init__(
         self,
         session,
-        uploader: ItemUploader,
-        n_procs:int =1,
+        reader_writer: ReaderWriter,
+        n_procs: int = 1,
     ):
-        self.uploader = uploader
+        self.reader_writer = reader_writer
         self.n_procs = n_procs
         self.session = session
 
-    def upload_parallel(self, items: list[Item]):
+    def run_parallel(self, items: list[Item]):
         in_out_uris = [(i.in_uri, i.out_uri) for i in items]
         with Pool(self.n_procs) as p:
-            results = p.starmap(self.uploader.upload, in_out_uris)
+            results = p.starmap(self.reader_writer.send, in_out_uris)
 
         job_meta = sorted([r["job"] for r in results], key=lambda r: r["error"])[-1]
         job = self.session.get(Job, items[0].job_id)
@@ -61,11 +58,11 @@ class TransferAgent:
 
         return job
 
-    def upload(self, job_id: str):
+    def run(self, job_id: str):
         job = self.session.get(Job, job_id)
 
         try:
-            self.uploader.refresh_credentials()
+            self.reader_writer.refresh_credentials()
         except AuthenticationError as e:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.message, "operation": e.operation}
@@ -81,18 +78,16 @@ class TransferAgent:
 
         if self.n_procs > 1:
             self.n_procs = min(self.n_procs, len(items.all()))
-            job = self.upload_parallel(items.all())
+            job = self.run_parallel(items.all())
         else:
             for item in items:
-                res = self.uploader.upload(item.in_uri, item.out_uri)
+                res = self.reader_writer.send(item.in_uri, item.out_uri)
 
                 job = self.session.get(Job, item.job_id)
                 item.status = res["item"]["status"]
                 item.transferred = res["item"]["transferred"]
                 job.error = res["job"]["error"]
                 job.info = res["job"]["info"]
-                self.session.add(item)
-                self.session.add(job)
                 self.session.commit()
 
         if job.error == JobError.NONE:
@@ -101,8 +96,8 @@ class TransferAgent:
 
         return job
 
-    def src_exists(self, uri: str):
-        return self.uploader.reader.exists(uri)
+    def source_exists(self, uri: str):
+        return self.reader_writer.reader.exists(uri)
 
     def parse_source(
         self,
@@ -111,7 +106,7 @@ class TransferAgent:
         pattern_filter: str = "*.*",
         is_regex: bool = False,
     ):
-        list_ = self.uploader.reader.list(uri, files_only=files_only)
+        list_ = self.reader_writer.reader.list(uri, files_only=files_only)
 
         list_ = [
             item
@@ -120,7 +115,7 @@ class TransferAgent:
         ]
         return list_
 
-    def init_job(self, source: str, destination: str, regexp: str = ".*"):
+    def init(self, source: str, destination: str, regexp: str = ".*"):
         from .enum_types import JobError
         from .models import Job
 
@@ -133,7 +128,7 @@ class TransferAgent:
         job.error = JobError.NONE
         init_error = False
         messages = []
-        if not self.src_exists(source):
+        if not self.source_exists(source):
             init_error = True
             messages.append(f"Source directory {source} not found.")
 
@@ -148,9 +143,7 @@ class TransferAgent:
         return job
 
     def parse_and_commit_items(self, job_id):
-        """Parse items from given job_id
-        Save in database all parsed items, information such as location are retrieved from
-        from job description
+        """Parse items from given job_id and save in database
 
         Args:
             job_id (str): Job id
@@ -209,7 +202,7 @@ class TransferAgent:
             job.error = JobError.NONE
             job.info = None
             self.session.commit()
-            self.upload(job.id)
+            self.run(job.id)
         else:
             print(f"Job {job_id} already done.")
 

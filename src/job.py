@@ -1,10 +1,10 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
-from app import make_session
+from .app import make_session
 
-from app.command import get_job_by_query
-from app.transfer_agent import make_agent
+from .app.command import get_job_by_query
+from .app.job_manager import make_job_manager
 
 app = typer.Typer()
 
@@ -16,18 +16,19 @@ def upload(
     regexp: Annotated[str, typer.Option()] = ".*",
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    agent = make_agent(n_procs=n_procs)
-    job = agent.init_job(source, destination, regexp)
-    print('created job', job.to_detailed_dict())
-    agent.parse_and_commit_items(job.id)
-    print('parsed job', job.to_detailed_dict())
-    job = agent.upload(job.id)
-    print('finished job', job.to_detailed_dict())
+    jm = make_job_manager(n_procs=n_procs)
+    job = jm.init(source, destination, regexp)
+    print("created job", job.to_detailed_dict())
+    jm.parse_and_commit_items(job.id)
+    print("parsed job", job.to_detailed_dict())
+    job = jm.run(job.id)
+    print("finished job", job.to_detailed_dict())
 
 @app.command()
-def resume(id: Annotated[str, typer.Argument()],
-           n_procs: Annotated[int, typer.Option()] = 1,
-           ):
+def resume(
+    id: Annotated[str, typer.Argument()],
+    n_procs: Annotated[int, typer.Option()] = 1,
+):
     pass
 
 
@@ -41,6 +42,7 @@ def ls(
     session = make_session()
     res = get_job_by_query(session, id=id, status=status, limit=limit, error=error)
     print(res)
+
 
 if __name__ == "__main__":
     app()

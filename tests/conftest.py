@@ -3,16 +3,18 @@ import io
 from urllib.parse import urlparse
 
 import pytest
-from app.base import BaseReader, BaseWriter
-from app.item_uploader import ItemUploader
-from app.models import BaseModel
-from app.transfer_agent import TransferAgent
-from app import make_session
+from src.base import BaseReader, BaseWriter
+from src.reader_writer import ReaderWriter
+from src.models import BaseModel
+from src.job_manager import JobManager
+from src import make_session
 
 
 class MockReader(BaseReader):
     files = [f for f in ["file_{}.ext".format(i) for i in range(10)]]
-    tree = {"": {"root": {"path": {"project": {"": files}, "otherproject": {"": files}}}}}
+    tree = {
+        "": {"root": {"path": {"project": {"": files}, "otherproject": {"": files}}}}
+    }
 
     def read(self, *args, **kwargs):
         return io.BytesIO(bytes("test", "ascii"))
@@ -20,17 +22,16 @@ class MockReader(BaseReader):
     def exists(self, uri):
         path = urlparse(uri).path
         curr = self.tree
-        for node in path.split('/'):
+        for node in path.split("/"):
             if node in curr:
                 curr = curr[node]
-            elif '' in curr and isinstance(curr[''], list):
-                if node in curr['']:
+            elif "" in curr and isinstance(curr[""], list):
+                if node in curr[""]:
                     return [node]
 
             else:
                 return []
         return curr
-
 
     def list(self, uri, *args, **kwargs):
         return self.exists(uri)
@@ -51,13 +52,13 @@ class MockWriter(BaseWriter):
 
 
 @pytest.fixture
-def agent():
-    uploader = ItemUploader(reader=MockReader(), writer=MockWriter())
-    session = make_session('sqlite://')
-    agent = TransferAgent(session=session, uploader=uploader)
+def job_manager():
+    rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
+    session = make_session("sqlite://")
+    job_manager = JobManager(session=session, reader_writer=rw)
 
-    BaseModel.metadata.create_all(agent.session.bind.engine)
+    BaseModel.metadata.create_all(job_manager.session.bind.engine)
 
-    yield agent
+    yield job_manager
 
-    BaseModel.metadata.drop_all(agent.session.bind.engine)
+    BaseModel.metadata.drop_all(job_manager.session.bind.engine)

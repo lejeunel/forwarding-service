@@ -74,7 +74,7 @@ def get_job_by_query(session, id=None, status=None, error=None, limit=50, sort_o
     Returns:
         [JobSchema]: return Job representation in a list
     """
-    from app.models import Job
+    from .models import Job
 
     check_field_exists(Job, sort_on)
     check_enum(JobStatus, status)

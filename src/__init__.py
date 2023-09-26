@@ -4,7 +4,7 @@ from decouple import config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import BaseModel
+from .models import BaseModel
 
 
 def make_session(db_url: str = None):

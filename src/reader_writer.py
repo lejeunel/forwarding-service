@@ -9,7 +9,7 @@ from .enum_types import ItemStatus, JobError
 from .exceptions import TransferError
 
 
-class ItemUploader:
+class ReaderWriter:
     def __init__(
         self,
         reader: BaseReader,
@@ -26,10 +26,8 @@ class ItemUploader:
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def upload(self, in_uri: str, out_uri: str):
-        """
-        Upload a single item.
-        """
+    def send(self, in_uri: str, out_uri: str):
+
         try:
             print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
             bytes_, type_ = self.reader(in_uri)

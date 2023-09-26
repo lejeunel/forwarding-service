@@ -25,7 +25,7 @@ class VaultCredentials(BaseAuthenticator):
     Retrieves AWS secrets from vault safe
     """
 
-    def __init__(self, url=None, token_path=None, role_id=None, secret_id=None) -> None:
+    def __init__(self, url=None, token_path=None, role_id=None, secret_id=None):
         """
         :param url: URL of Vault safe
         :param token_path: Path where token is stored

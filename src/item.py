@@ -1,8 +1,9 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
-from app import make_session
 
+from .app import make_session
+from .app.command import get_item_by_query
 
 app = typer.Typer()
 
@@ -15,7 +16,6 @@ def ls(
     status: Annotated[str, typer.Option()] = None,
     sort_on: Annotated[str, typer.Option()] = None,
 ):
-    from app.command import get_item_by_query
 
     session = make_session()
     res = get_item_by_query(session, source, destination, status, job_id, limit, sort_on)

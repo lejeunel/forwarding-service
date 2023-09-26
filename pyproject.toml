@@ -3,7 +3,10 @@ name = "forwarding-service"
 version = "0.1.0"
 description = "Resilient and flexible data tranfer tool."
 authors = ["Laurent Lejeune <me@lejeunel.org>"]
-readme = "README.md"
+readme = "README.org"
+
+[tool.poetry.scripts]
+forwarding_service = "forwarding_service.main:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
