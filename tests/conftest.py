@@ -3,11 +3,11 @@ import io
 from urllib.parse import urlparse
 
 import pytest
-from src.base import BaseReader, BaseWriter
-from src.reader_writer import ReaderWriter
-from src.models import BaseModel
-from src.job_manager import JobManager
-from src import make_session
+from forwarding_service.base import BaseReader, BaseWriter
+from forwarding_service.reader_writer import ReaderWriter
+from forwarding_service.models import BaseModel
+from forwarding_service.job_manager import JobManager
+from forwarding_service import make_session
 
 
 class MockReader(BaseReader):

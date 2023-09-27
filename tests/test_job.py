@@ -1,5 +1,5 @@
 import pytest
-from src.enum_types import JobError, JobStatus, ItemStatus
+from forwarding_service.enum_types import JobError, JobStatus, ItemStatus
 
 
 @pytest.mark.parametrize(

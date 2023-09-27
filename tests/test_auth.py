@@ -1,6 +1,6 @@
-from src.enum_types import JobError
-from src.base import BaseWriter
-from src.exceptions import AuthenticationError
+from forwarding_service.enum_types import JobError
+from forwarding_service.base import BaseWriter
+from forwarding_service.exceptions import AuthenticationError
 
 
 class MockBadAuthWriter(BaseWriter):

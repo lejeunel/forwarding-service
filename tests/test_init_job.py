@@ -1,4 +1,4 @@
-from src.enum_types import JobError
+from forwarding_service.enum_types import JobError
 
 def test_existing_source(job_manager):
     job = job_manager.init(

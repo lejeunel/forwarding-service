@@ -1,4 +1,4 @@
-from src.models import Item
+from forwarding_service.models import Item
 
 
 def test_regexp_no_match(job_manager):
