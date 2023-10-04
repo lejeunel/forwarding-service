@@ -30,9 +30,8 @@ black = "^23.7.0"
 pyright = "^1.1.322"
 flake8 = "^6.1.0"
 pylint = "^2.17.5"
+ipython = "^8.15.0"
 
 [tool.pyright]
 venv = "forwarding-service"
-exclude = ["**/node_modules",
-    "**/__pycache__",
-]
+exclude = ["**/__pycache__"]

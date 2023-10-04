@@ -13,6 +13,7 @@ Under the hood, this app leverages an SQLite database that stores transactions. 
 ** Installation
 
 This app is packaged using [[https://python-poetry.org/docs/#installation][Poetry]], which you must install first before running the following command from the project's root:
+
 #+begin_src sh
 poetry install
 #+end_src
