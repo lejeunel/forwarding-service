@@ -18,7 +18,7 @@ def ls(
     """list items"""
 
     jm = JobManager.local_to_s3()
-    items = jm.query.items(source, destination, status, job_id, limit, sort_on)
+    items = jm.query.items(ItemQueryArgs(source, destination, status, job_id, limit, sort_on))
     items = [item.to_dict() for item in items]
     print(items)
 

@@ -1,11 +1,25 @@
 from uuid import UUID
-from pydantic import validate_arguments
+from pydantic import validate_arguments, BaseModel
 from typing import Optional
 
 from .models import Job, Item
 from .utils import check_field_exists, check_enum, filter_table
 from .enum_types import ItemStatus, JobError, JobStatus
 
+
+
+class JobQueryArgs(BaseModel):
+    id: Optional[UUID] = None
+    status: Optional[JobStatus] = None
+    error: Optional[JobError] = None
+    limit: int = 50
+    sort_on: Optional[str] = None
+
+class ItemQueryArgs(JobQueryArgs):
+    source: Optional[str] = None
+    destination: Optional[str] = None
+    status: Optional[ItemStatus] = None
+    job_id: Optional[UUID] = None
 
 class Query:
     def __init__(self, session):
@@ -15,8 +29,10 @@ class Query:
     def job_exists(self, job_id: UUID):
         return self.session.query(Job).filter(Job.id == job_id).count() > 0
 
-    @validate_arguments
-    def jobs(self, id=None, status=None, error=None, limit=50, sort_on=None):
+    def jobs(
+        self,
+            query_args: JobQueryArgs
+    ):
         """Return Jobs after applying filters
 
         Args:
@@ -30,27 +46,27 @@ class Query:
         """
         from .models import Job
 
-        check_field_exists(Job, sort_on)
-        check_enum(JobStatus, status)
-        check_enum(JobError, error)
+        check_field_exists(Job, query_args.sort_on)
+        check_enum(JobStatus, query_args.status)
+        check_enum(JobError, query_args.error)
 
         query = filter_table(
             self.session,
             Job,
             **{
-                "id": id,
-                "last_state": status,
-                "error": error,
-                "limit": limit,
-                "sort_on": sort_on,
+                "id": query_args.id,
+                "last_state": query_args.status,
+                "error": query_args.error,
+                "limit": query_args.limit,
+                "sort_on": query_args.sort_on,
             },
         )
 
-        if sort_on is not None:
-            field = getattr(Job, sort_on)
+        if query_args.sort_on is not None:
+            field = getattr(Job, query_args.sort_on)
             query = query.order_by(field.desc())
 
-        query = query.limit(limit)
+        query = query.limit(query_args.limit)
 
         jobs = query.all()[::-1]
 
@@ -60,27 +76,29 @@ class Query:
     @validate_arguments
     def items(
         self,
-        id: Optional[UUID] = None,
-        source: Optional[str] = None,
-        destination: Optional[str] = None,
-        status: Optional[JobStatus] = None,
-        job_id: Optional[UUID] = None,
-        limit: int = 50,
-        sort_on: Optional[str] = None,
+            query_args: ItemQueryArgs
     ):
-        check_field_exists(Item, sort_on)
-        check_enum(ItemStatus, status)
+        check_field_exists(Item, query_args.sort_on)
+        check_enum(ItemStatus, query_args.status)
 
         query = filter_table(
             self.session,
             Item,
-            **{"job_id": job_id, "status": status, "limit": limit, "sort_on": sort_on},
+            **{
+                "id": query_args.id,
+                "job_id": query_args.job_id,
+                "status": query_args.status,
+                "limit": query_args.limit,
+                "sort_on": query_args.sort_on,
+                "in_uri": query_args.source,
+                "out_uri": query_args.destination
+            },
         )
-        if sort_on is not None:
-            field = getattr(Item, sort_on)
+        if query_args.sort_on is not None:
+            field = getattr(Item, query_args.sort_on)
             query = query.order_by(field)
 
-        query = query.limit(limit)
+        query = query.limit(query_args.limit)
         items = query.all()
 
         return items

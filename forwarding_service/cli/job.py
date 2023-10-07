@@ -3,6 +3,7 @@ from rich import print
 from typing_extensions import Annotated
 
 from forwarding_service.job_manager import JobManager
+from forwarding_service.query import JobQueryArgs, ItemQueryArgs
 
 app = typer.Typer()
 
@@ -42,7 +43,7 @@ def ls(
 ):
     """list jobs"""
     jm = JobManager.local_to_s3()
-    jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
+    jobs = jm.query.jobs(JobQueryArgs(id=id, status=status, limit=limit, error=error))
     jobs = [job.to_detailed_dict() for job in jobs]
     print(jobs)
 
