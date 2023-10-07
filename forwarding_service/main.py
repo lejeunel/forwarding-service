@@ -1,5 +1,5 @@
 import typer
-from . import job, item
+import job, item
 
 app = typer.Typer()
 app.add_typer(job.app, name='job')

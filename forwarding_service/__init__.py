@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 
 from .models import BaseModel
 
-
 def make_session(db_url: str = None):
     if db_url is None:
         db_path = Path(

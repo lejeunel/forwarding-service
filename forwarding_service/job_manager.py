@@ -1,5 +1,7 @@
+import uuid
 from datetime import datetime
 from multiprocessing import Pool
+from uuid import UUID
 
 from decouple import config
 
@@ -14,18 +16,18 @@ from .s3 import S3Writer
 from .utils import _match_file_extension
 
 
-def make_job_manager(db_url: str = None, n_procs: int = 1):
-    auth = S3StaticCredentials(
-        aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
-        aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
-    )
-    writer = S3Writer(auth)
-    rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
+def check_valid_uuid(func):
+    def func_wrapper(self, id_, *args, **kwargs):
+        try:
+            uuid.UUID(str(id_))
+            res = func(self, id_, *args, **kwargs)
+            return res
+        except ValueError:
+            raise ValueError(f"{id_} is not a valid UUID")
 
-    session = make_session(db_url)
-    job_manager = JobManager(session=session, reader_writer=rw, n_procs=n_procs)
+        return res
 
-    return job_manager
+    return func_wrapper
 
 
 class JobManager:
@@ -58,7 +60,7 @@ class JobManager:
 
         return job
 
-    def run(self, job_id: str):
+    def run(self, job_id: UUID):
         job = self.session.get(Job, job_id)
 
         try:
@@ -96,7 +98,7 @@ class JobManager:
 
         return job
 
-    def source_exists(self, uri: str):
+    def source_exists(self, uri: UUID):
         return self.reader_writer.reader.exists(uri)
 
     def parse_source(
@@ -116,9 +118,6 @@ class JobManager:
         return list_
 
     def init(self, source: str, destination: str, regexp: str = ".*"):
-        from .enum_types import JobError
-        from .models import Job
-
         job = Job(
             source=source,
             destination=destination,
@@ -142,6 +141,7 @@ class JobManager:
 
         return job
 
+    @check_valid_uuid
     def parse_and_commit_items(self, job_id):
         """Parse items from given job_id and save in database
 
@@ -151,7 +151,6 @@ class JobManager:
         Returns:
             Item: return all parsed items
         """
-        from .models import Item, Job
 
         job = self.session.get(Job, job_id)
 
@@ -187,14 +186,14 @@ class JobManager:
 
         return self.session.query(Item).filter(Item.job_id == job.id).all()
 
-    def resume(self, job_id: str):
+    @check_valid_uuid
+    def resume(self, job_id: UUID):
         """Resume Job where status is not Done and file is Parsed
 
         Args:
             redis_url (str): Redis url
             job_id (str): job id to resume
         """
-        from .models import Job
 
         job = self.session.get(Job, job_id)
 
@@ -207,3 +206,37 @@ class JobManager:
             print(f"Job {job_id} already done.")
 
         return job
+
+    @check_valid_uuid
+    def job_exists(self, job_id: UUID):
+        return self.session.query(Job).filter(Job.id == job_id).count() > 0
+
+    @check_valid_uuid
+    def delete_job(self, job_id: UUID):
+        job = self.session.get(Job, job_id)
+        self.session.delete(job)
+        self.session.commit()
+
+    @check_valid_uuid
+    def get_items(self, job_id: UUID):
+        if not self.job_exists(job_id):
+            raise ValueError(f"{job_id} does not exists.")
+        return self.session.get(Job, job_id).items
+
+    def get_jobs(self):
+        return self.session.get(Job).all()
+
+    @classmethod
+    def local_to_s3(cls, db_url: str = None, n_procs: int = 1):
+
+        auth = S3StaticCredentials(
+            aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
+            aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
+        )
+        writer = S3Writer(auth)
+        rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
+
+        session = make_session(db_url)
+        job_manager = cls(session=session, reader_writer=rw, n_procs=n_procs)
+
+        return job_manager

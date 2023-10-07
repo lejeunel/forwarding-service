@@ -8,6 +8,7 @@ from forwarding_service.reader_writer import ReaderWriter
 from forwarding_service.models import BaseModel
 from forwarding_service.job_manager import JobManager
 from forwarding_service import make_session
+from forwarding_service.enum_types import JobError, JobStatus, ItemStatus
 
 
 class MockReader(BaseReader):
@@ -62,3 +63,26 @@ def job_manager():
     yield job_manager
 
     BaseModel.metadata.drop_all(job_manager.session.bind.engine)
+
+@pytest.fixture
+def completed_job(job_manager):
+    job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
+    job_manager.parse_and_commit_items(job.id)
+    job_manager.run(job.id)
+
+    yield job
+
+@pytest.fixture
+def partial_job(job_manager, completed_job):
+    """simulate failed job with one item pending"""
+
+    item = completed_job.items[0]
+
+    job = completed_job
+    item.status = ItemStatus.PENDING
+    job.error = JobError.TRANSFER_ERROR
+    job.last_state = JobStatus.PARSED
+    job_manager.session.commit()
+
+    yield job
+

@@ -1,22 +1,23 @@
 import typer
 from rich import print
 from typing_extensions import Annotated
-from .app import make_session
 
-from .app.command import get_job_by_query
-from .app.job_manager import make_job_manager
+from forwarding_service import make_session
+from forwarding_service.command import get_job_by_query
+from forwarding_service.job_manager import JobManager
 
 app = typer.Typer()
 
 
 @app.command()
-def upload(
+def run(
     source: Annotated[str, typer.Argument()],
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    jm = make_job_manager(n_procs=n_procs)
+    """Run job"""
+    jm = JobManager.local_to_s3(n_procs=n_procs)
     job = jm.init(source, destination, regexp)
     print("created job", job.to_detailed_dict())
     jm.parse_and_commit_items(job.id)
@@ -29,7 +30,9 @@ def resume(
     id: Annotated[str, typer.Argument()],
     n_procs: Annotated[int, typer.Option()] = 1,
 ):
-    pass
+    """Resume job"""
+    jm = JobManager.local_to_s3(n_procs=n_procs)
+    jm.resume(id)
 
 
 @app.command()
@@ -39,10 +42,18 @@ def ls(
     error: Annotated[str, typer.Option()] = None,
     limit: Annotated[str, typer.Option()] = None,
 ):
-    session = make_session()
-    res = get_job_by_query(session, id=id, status=status, limit=limit, error=error)
+    """list jobs"""
+    jm = JobManager.local_to_s3()
+    res = get_job_by_query(jm.session, id=id, status=status, limit=limit, error=error)
     print(res)
 
+@app.command()
+def rm(
+    id: Annotated[str, typer.Option()],
+):
+    """Delete job and related items"""
+    jm = JobManager.local_to_s3()
+    jm.delete_job(id)
 
 if __name__ == "__main__":
     app()
