@@ -2,8 +2,7 @@ import typer
 from rich import print
 from typing_extensions import Annotated
 
-from forwarding_service import make_session
-from forwarding_service.command import get_item_by_query
+from forwarding_service.job_manager import JobManager
 
 app = typer.Typer()
 
@@ -18,9 +17,10 @@ def ls(
 ):
     """list items"""
 
-    session = make_session()
-    res = get_item_by_query(session, source, destination, status, job_id, limit, sort_on)
-    print(res)
+    jm = JobManager.local_to_s3()
+    items = jm.query.items(source, destination, status, job_id, limit, sort_on)
+    items = [item.to_dict() for item in items]
+    print(items)
 
 if __name__ == "__main__":
     app()

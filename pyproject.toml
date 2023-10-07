@@ -6,7 +6,7 @@ authors = ["Laurent Lejeune <me@lejeunel.org>"]
 readme = "README.org"
 
 [tool.poetry.scripts]
-forwarding_service = "forwarding_service.main:main"
+forwarding_service = "forwarding_service.cli.main:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -20,6 +20,7 @@ python-decouple = "^3.8"
 aws-error-utils = "^2.7.0"
 sqlalchemy-mixins = "^2.0.4"
 typer = "^0.9.0"
+pydantic = "^2.4.2"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.2.2"

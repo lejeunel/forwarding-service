@@ -1,5 +1,6 @@
 import fnmatch
 import re
+from uuid import UUID
 
 from flask_sqlalchemy.model import DefaultMeta
 
@@ -48,3 +49,16 @@ def _match_file_extension(filename: str, pattern: str, is_regex=False):
     return True
 
 
+def check_field_exists(model, field):
+    if field:
+        fields = [c.name for c in model.__table__.columns]
+        assert (
+            field in fields
+        ), f"field {field} does not exist in {model.__name__}. Select one of {fields}"
+
+
+def check_enum(enum_class, value):
+    if value:
+        assert (
+            value in enum_class
+        ), f"{value} does not exist in {enum_class.__name__}. Select one of {enum_class._member_names_}"

@@ -2,8 +2,6 @@ import typer
 from rich import print
 from typing_extensions import Annotated
 
-from forwarding_service import make_session
-from forwarding_service.command import get_job_by_query
 from forwarding_service.job_manager import JobManager
 
 app = typer.Typer()
@@ -44,8 +42,9 @@ def ls(
 ):
     """list jobs"""
     jm = JobManager.local_to_s3()
-    res = get_job_by_query(jm.session, id=id, status=status, limit=limit, error=error)
-    print(res)
+    jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
+    jobs = [job.to_detailed_dict() for job in jobs]
+    print(jobs)
 
 @app.command()
 def rm(

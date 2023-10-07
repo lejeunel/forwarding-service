@@ -1,9 +1,9 @@
-import uuid
 from datetime import datetime
 from multiprocessing import Pool
 from uuid import UUID
 
 from decouple import config
+from pydantic import validate_arguments
 
 from . import make_session
 from .auth import S3StaticCredentials
@@ -11,23 +11,10 @@ from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError
 from .file import FileSystemReader
 from .models import Item, Job
+from .query import Query
 from .reader_writer import ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
-
-
-def check_valid_uuid(func):
-    def func_wrapper(self, id_, *args, **kwargs):
-        try:
-            uuid.UUID(str(id_))
-            res = func(self, id_, *args, **kwargs)
-            return res
-        except ValueError:
-            raise ValueError(f"{id_} is not a valid UUID")
-
-        return res
-
-    return func_wrapper
 
 
 class JobManager:
@@ -40,6 +27,7 @@ class JobManager:
         self.reader_writer = reader_writer
         self.n_procs = n_procs
         self.session = session
+        self.query = Query(session)
 
     def run_parallel(self, items: list[Item]):
         in_out_uris = [(i.in_uri, i.out_uri) for i in items]
@@ -141,8 +129,8 @@ class JobManager:
 
         return job
 
-    @check_valid_uuid
-    def parse_and_commit_items(self, job_id):
+    @validate_arguments
+    def parse_and_commit_items(self, job_id: UUID):
         """Parse items from given job_id and save in database
 
         Args:
@@ -186,13 +174,9 @@ class JobManager:
 
         return self.session.query(Item).filter(Item.job_id == job.id).all()
 
-    @check_valid_uuid
+    @validate_arguments
     def resume(self, job_id: UUID):
         """Resume Job where status is not Done and file is Parsed
-
-        Args:
-            redis_url (str): Redis url
-            job_id (str): job id to resume
         """
 
         job = self.session.get(Job, job_id)
@@ -207,24 +191,13 @@ class JobManager:
 
         return job
 
-    @check_valid_uuid
-    def job_exists(self, job_id: UUID):
-        return self.session.query(Job).filter(Job.id == job_id).count() > 0
 
-    @check_valid_uuid
+    @validate_arguments
     def delete_job(self, job_id: UUID):
         job = self.session.get(Job, job_id)
         self.session.delete(job)
         self.session.commit()
 
-    @check_valid_uuid
-    def get_items(self, job_id: UUID):
-        if not self.job_exists(job_id):
-            raise ValueError(f"{job_id} does not exists.")
-        return self.session.get(Job, job_id).items
-
-    def get_jobs(self):
-        return self.session.get(Job).all()
 
     @classmethod
     def local_to_s3(cls, db_url: str = None, n_procs: int = 1):
