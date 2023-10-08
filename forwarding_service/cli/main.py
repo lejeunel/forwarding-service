@@ -1,5 +1,5 @@
 import typer
-import job, item
+from forwarding_service.cli import job, item
 
 app = typer.Typer()
 app.add_typer(job.app, name='job')

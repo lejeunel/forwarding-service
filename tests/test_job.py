@@ -19,7 +19,7 @@ def test_multiple_files_job(job_manager, n_procs, in_, out_):
     assert job.last_state == JobStatus.DONE
     assert job.error == JobError.NONE
     assert all(item.status == ItemStatus.TRANSFERRED for item in items)
-    assert all(item.transferred > item.created for item in items)
+    assert all(item.transferred_at > item.created_at for item in items)
 
 
 @pytest.mark.parametrize(
@@ -44,6 +44,11 @@ def test_single_file_job(job_manager, n_procs, in_, out_):
 
     assert item.status == ItemStatus.TRANSFERRED
     assert item.out_uri == expected_out
+
+def test_duplicate_job(job_manager, completed_job):
+    job = job_manager.init(completed_job.source, completed_job.destination)
+    assert job.error == JobError.INIT_ERROR
+
 
 
 def test_resume_job(job_manager, partial_job):
@@ -75,13 +80,6 @@ def test_get_items(job_manager, completed_job):
 
 
 def test_get_jobs(job_manager, completed_job):
-    initiated_job = job_manager.init(
-        "file:///root/path/project/", "s3://bucket/project/"
-    )
-    assert (
-        job_manager.query.jobs(JobQueryArgs(status=JobStatus.INITIATED))[0].id
-        == initiated_job.id
-    )
     assert (
         job_manager.query.jobs(JobQueryArgs(status=JobStatus.DONE))[0].id
         == completed_job.id
@@ -91,4 +89,4 @@ def test_get_jobs(job_manager, completed_job):
 def test_delete_job(job_manager, completed_job):
     job_manager.delete_job(completed_job.id)
     assert job_manager.query.job_exists(completed_job.id) == False
-    assert len(job_manager.query.items(ItemQueryArgs(job_id=completed_job.id))) == 0
+    assert len(job_manager.query.items(ItemQueryArgs())) == 0

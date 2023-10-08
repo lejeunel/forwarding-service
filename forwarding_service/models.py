@@ -1,61 +1,44 @@
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from uuid import UUID
 
-import sqlalchemy as sa
-from sqlalchemy import JSON, DateTime, Enum, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
-from sqlalchemy_mixins.repr import ReprMixin
-from sqlalchemy_mixins.serialize import SerializeMixin
-from sqlalchemy_utils.types.uuid import UUIDType
+from sqlalchemy import JSON
+from sqlmodel import Column, Field, Relationship, SQLModel, Enum
 
 from .enum_types import ItemStatus, JobError, JobStatus
 
 
-class BaseModel(DeclarativeBase, SerializeMixin, ReprMixin):
-    pass
+class Job(SQLModel, table=True):
+    id: Optional[UUID] = Field(
+        default_factory=uuid.uuid4, primary_key=True, index=True, nullable=False
+    )
+    last_state: JobStatus = Field(
+        default=JobStatus.INITIATED, sa_column=Column(Enum(JobStatus))
+    )
+    error: JobError = Field(sa_column=Column(Enum(JobError)))
 
-class Item(BaseModel):
-    """
-    Each record is an item to transfer
-    """
-    __tablename__ = "item"
-
-    id = mapped_column(UUIDType, primary_key=True, default=uuid.uuid4)
-    in_uri = mapped_column(String)
-    out_uri = mapped_column(String)
-    status = mapped_column(Enum(ItemStatus))
-    job_id = mapped_column(UUIDType, sa.ForeignKey("job.id"))
-    created = mapped_column(DateTime(timezone=True), server_default=func.now())
-    transferred = mapped_column(DateTime(timezone=True), nullable=True)
-    job: Mapped["Job"] = relationship(back_populates="items")
+    info: Dict[Any, Any] = Field(index=False, sa_column=Column(JSON))
+    source: str
+    destination: str
+    created_at: Optional[datetime] = Field(default_factory=datetime.now)
+    regexp: str
+    items: List["Item"] = Relationship(
+        sa_relationship_kwargs={"cascade": "delete"}, back_populates="job"
+    )
 
 
+class Item(SQLModel, table=True):
+    id: Optional[UUID] = Field(
+        default_factory=uuid.uuid4, primary_key=True, index=True, nullable=False
+    )
+    in_uri: str
+    out_uri: str
 
-class Job(BaseModel):
-    """
-    Each record is a set of items with flags that are
-    helpful to monitor status
-    """
-    __tablename__ = "job"
-
-    id = mapped_column(UUIDType, primary_key=True, default=uuid.uuid4)
-    last_state = mapped_column(Enum(JobStatus), default=JobStatus.INITIATED)
-    error = mapped_column(Enum(JobError), default=JobError.NONE)
-    info = mapped_column(JSON)
-    source = mapped_column(String)
-    destination = mapped_column(String)
-    regexp = mapped_column(String)
-    created = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    items: Mapped[list["Item"]] = relationship(back_populates="job")
-
-    def to_detailed_dict(self, *args, **kwargs):
-        ret = super().to_dict()
-        ret['n_items'] = len(self.items)
-        ret['done_item'] = len([i for i in self.items if i.status == ItemStatus.TRANSFERRED])
-        if ret['n_items'] > 0:
-            ret['done_perc'] = '{:.2f}%'.format(100 * ret['done_item'] / ret['n_items'])
-        else:
-            ret['done_perc'] = 'none'
-
-        return ret
+    status: ItemStatus = Field(
+        default=ItemStatus.PENDING, sa_column=Column(Enum(ItemStatus))
+    )
+    job_id: UUID = Field(default=None, foreign_key="job.id")
+    created_at: Optional[datetime] = Field(default_factory=datetime.now)
+    transferred_at: Optional[datetime] = Field(default_factory=datetime.now)
+    job: Optional[Job] = Relationship(back_populates="items")

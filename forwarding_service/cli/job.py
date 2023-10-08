@@ -1,9 +1,9 @@
 import typer
+from forwarding_service.job_manager import JobManager
+from forwarding_service.query import JobQueryArgs
+from forwarding_service.enum_types import JobError, ItemStatus
 from rich import print
 from typing_extensions import Annotated
-
-from forwarding_service.job_manager import JobManager
-from forwarding_service.query import JobQueryArgs, ItemQueryArgs
 
 app = typer.Typer()
 
@@ -18,11 +18,14 @@ def run(
     """Run job"""
     jm = JobManager.local_to_s3(n_procs=n_procs)
     job = jm.init(source, destination, regexp)
-    print("created job", job.to_detailed_dict())
-    jm.parse_and_commit_items(job.id)
-    print("parsed job", job.to_detailed_dict())
-    job = jm.run(job.id)
-    print("finished job", job.to_detailed_dict())
+    if job.error != JobError.INIT_ERROR:
+        print("created job", job.id)
+        jm.parse_and_commit_items(job.id)
+        print("parsed job", job.id)
+        jm.run(job.id)
+        print("finished job", job.id)
+    else:
+        print(f"Error: {str(job.error)} {job.info}")
 
 @app.command()
 def resume(
@@ -39,17 +42,18 @@ def ls(
     id: Annotated[str, typer.Option()] = None,
     status: Annotated[str, typer.Option()] = None,
     error: Annotated[str, typer.Option()] = None,
-    limit: Annotated[str, typer.Option()] = None,
+    limit: Annotated[str, typer.Option()] = 50,
 ):
     """list jobs"""
     jm = JobManager.local_to_s3()
     jobs = jm.query.jobs(JobQueryArgs(id=id, status=status, limit=limit, error=error))
-    jobs = [job.to_detailed_dict() for job in jobs]
+    jobs = [{**dict(job), **{'total_files': len(job.items),
+                             'done_files': len([item for item in job.items if item.status == ItemStatus.TRANSFERRED])}} for job in jobs]
     print(jobs)
 
 @app.command()
 def rm(
-    id: Annotated[str, typer.Option()],
+    id: Annotated[str, typer.Argument()],
 ):
     """Delete job and related items"""
     jm = JobManager.local_to_s3()

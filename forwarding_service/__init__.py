@@ -1,10 +1,8 @@
 from pathlib import Path
 
 from decouple import config
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import create_engine, Session, SQLModel
 
-from .models import BaseModel
 
 def make_session(db_url: str = None):
     if db_url is None:
@@ -14,8 +12,7 @@ def make_session(db_url: str = None):
         db_url = f'sqlite:///{db_path}'
 
     engine = create_engine(f"{db_url}")
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    BaseModel.metadata.create_all(session.bind.engine)
+    SQLModel.metadata.create_all(engine)
+    session = Session(engine)
 
     return session

@@ -49,7 +49,7 @@ class ReaderWriter:
 
         return {
             "item": {"status": ItemStatus.TRANSFERRED,
-                     'transferred': datetime.now()},
+                     'transferred_at': datetime.now()},
             "job": {
                 "error": JobError.NONE,
                 "info": None,

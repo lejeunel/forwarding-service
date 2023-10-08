@@ -1,4 +1,3 @@
-from datetime import datetime
 from multiprocessing import Pool
 from uuid import UUID
 
@@ -6,12 +5,11 @@ from decouple import config
 from pydantic import validate_arguments
 
 from . import make_session
-from .auth import S3StaticCredentials
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError
 from .file import FileSystemReader
 from .models import Item, Job
-from .query import Query
+from .query import Query, JobQueryArgs, ItemQueryArgs
 from .reader_writer import ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
@@ -42,7 +40,7 @@ class JobManager:
         # TODO should be bulk update here
         for item, res in zip(items, results):
             item.status = res["item"]["status"]
-            item.transferred = res["item"]["transferred"]
+            item.transferred_at = res["item"]["transferred_at"]
 
         self.session.commit()
 
@@ -64,18 +62,18 @@ class JobManager:
             self.session.query(Item)
             .where(Item.job_id == job.id)
             .where(Item.status != ItemStatus.TRANSFERRED)
-        )
+        ).all()
 
         if self.n_procs > 1:
-            self.n_procs = min(self.n_procs, len(items.all()))
-            job = self.run_parallel(items.all())
+            self.n_procs = min(self.n_procs, len(items))
+            job = self.run_parallel(items)
         else:
             for item in items:
                 res = self.reader_writer.send(item.in_uri, item.out_uri)
 
-                job = self.session.get(Job, item.job_id)
+                if res['job']['error'] == JobError.NONE:
+                    item.transferred_at = res["item"]["transferred_at"]
                 item.status = res["item"]["status"]
-                item.transferred = res["item"]["transferred"]
                 job.error = res["job"]["error"]
                 job.info = res["job"]["info"]
                 self.session.commit()
@@ -119,10 +117,14 @@ class JobManager:
             init_error = True
             messages.append(f"Source directory {source} not found.")
 
+        duplicate_jobs = self.query.jobs(JobQueryArgs(source=source, destination=destination))
+        if duplicate_jobs:
+            init_error = True
+            messages.append(f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}")
+
         if init_error:
             job.error = JobError.INIT_ERROR
             job.info = {"message": messages}
-            print(job.error, messages)
 
         self.session.add(job)
         self.session.commit()
@@ -162,7 +164,6 @@ class JobManager:
                 out_uri=out_uri,
                 status=ItemStatus.PENDING,
                 job_id=job.id,
-                created=datetime.now(),
             )
             for in_uri, out_uri in zip(in_uris, out_uris)
         ]
@@ -194,7 +195,7 @@ class JobManager:
 
     @validate_arguments
     def delete_job(self, job_id: UUID):
-        job = self.session.get(Job, job_id)
+        job = self.query.jobs(JobQueryArgs(id=job_id))[0]
         self.session.delete(job)
         self.session.commit()
 
@@ -202,11 +203,7 @@ class JobManager:
     @classmethod
     def local_to_s3(cls, db_url: str = None, n_procs: int = 1):
 
-        auth = S3StaticCredentials(
-            aws_access_key_id=config("AWS_ACCESS_KEY_ID", None),
-            aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY", None),
-        )
-        writer = S3Writer(auth)
+        writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", 'default'))
         rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
 
         session = make_session(db_url)

@@ -4,11 +4,10 @@ from urllib.parse import urlparse
 
 import pytest
 from forwarding_service.base import BaseReader, BaseWriter
-from forwarding_service.reader_writer import ReaderWriter
-from forwarding_service.models import BaseModel
+from forwarding_service.enum_types import ItemStatus, JobError, JobStatus
 from forwarding_service.job_manager import JobManager
-from forwarding_service import make_session
-from forwarding_service.enum_types import JobError, JobStatus, ItemStatus
+from forwarding_service.reader_writer import ReaderWriter
+from sqlmodel import Session, SQLModel, create_engine
 
 
 class MockReader(BaseReader):
@@ -55,14 +54,18 @@ class MockWriter(BaseWriter):
 @pytest.fixture
 def job_manager():
     rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
-    session = make_session("sqlite://")
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+
+    SQLModel.metadata.create_all(engine)
+    session = Session(engine)
     job_manager = JobManager(session=session, reader_writer=rw)
 
-    BaseModel.metadata.create_all(job_manager.session.bind.engine)
 
     yield job_manager
 
-    BaseModel.metadata.drop_all(job_manager.session.bind.engine)
+    SQLModel.metadata.drop_all(engine)
 
 @pytest.fixture
 def completed_job(job_manager):

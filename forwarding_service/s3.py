@@ -9,9 +9,9 @@ from aws_error_utils import get_aws_error_info
 
 
 class S3Writer(BaseWriter):
-    def __init__(self, authenticator=BaseAuthenticator):
-        self.authenticator = authenticator
-        self.client = boto3.client("s3", **self.authenticator())
+    def __init__(self, profile_name='default', *args, **kwargs):
+        self.session = boto3.Session(profile_name=profile_name)
+        self.client = self.session.client('s3')
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -49,5 +49,4 @@ class S3Writer(BaseWriter):
             raise TransferError(message=e.message, operation=e.operation_name)
 
     def refresh_credentials(self):
-        creds = self.authenticator()
-        self.client = boto3.client("s3", **creds)
+        pass
