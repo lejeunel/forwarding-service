@@ -41,7 +41,7 @@ def ls(
     limit: Annotated[str, typer.Option()] = 50,
 ):
     """list jobs"""
-    jm = JobManager.inspector()
+    jm = JobManager.viewer()
     jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
     jobs = [job.to_detailed_dict() for job in jobs]
     print(jobs)

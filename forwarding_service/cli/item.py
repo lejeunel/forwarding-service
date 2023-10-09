@@ -18,7 +18,7 @@ def ls(
 ):
     """list items"""
 
-    jm = JobManager.inspector()
+    jm = JobManager.viewer()
     items = jm.query.items(
         id=id,
         source=source,

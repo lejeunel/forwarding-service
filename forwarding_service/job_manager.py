@@ -217,6 +217,6 @@ class JobManager:
         return job_manager
 
     @classmethod
-    def inspector(cls, db_url: str=None):
+    def viewer(cls, db_url: str=None):
         session = make_session(db_url)
         return cls(session=session)
