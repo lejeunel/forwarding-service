@@ -16,11 +16,14 @@ class JobQueryArgs(BaseModel):
     sort_on: Optional[str] = None
 
 
-class ItemQueryArgs(JobQueryArgs):
+class ItemQueryArgs(BaseModel):
+    id: Optional[UUID] = None
+    job_id: Optional[UUID] = None
     source: Optional[str] = None
     destination: Optional[str] = None
     status: Optional[ItemStatus] = None
-    job_id: Optional[UUID] = None
+    limit: int = 50
+    sort_on: Optional[str] = None
 
 
 class Query:
