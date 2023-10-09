@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, validate_call
@@ -9,21 +8,21 @@ from .utils import check_enum, check_field_exists, filter_table
 
 
 class JobQueryArgs(BaseModel):
-    id: Optional[UUID] = None
-    status: Optional[JobStatus] = None
-    error: Optional[JobError] = None
+    id: UUID | None = None
+    status: JobStatus | None = None
+    error: JobError | None = None
     limit: int = 50
-    sort_on: Optional[str] = None
+    sort_on: str | None = None
 
 
 class ItemQueryArgs(BaseModel):
-    id: Optional[UUID] = None
-    job_id: Optional[UUID] = None
-    source: Optional[str] = None
-    destination: Optional[str] = None
-    status: Optional[ItemStatus] = None
+    id: UUID | None = None
+    job_id: UUID | None = None
+    source: str | None = None
+    destination: str | None = None
+    status: ItemStatus | None = None
     limit: int = 50
-    sort_on: Optional[str] = None
+    sort_on: str | None = None
 
 
 class Query:
