@@ -1,6 +1,5 @@
 import pytest
 from forwarding_service.enum_types import ItemStatus, JobError, JobStatus
-from forwarding_service.query import ItemQueryArgs, JobQueryArgs
 import uuid
 
 
@@ -70,8 +69,8 @@ def test_invalid_id_raises_exception(job_manager):
 
 def test_get_items(job_manager, completed_job):
     empty_job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
-    assert len(job_manager.query.items(ItemQueryArgs(job_id=completed_job.id))) > 0
-    assert len(job_manager.query.items(ItemQueryArgs(job_id=empty_job.id))) == 0
+    assert len(job_manager.query.items(job_id=completed_job.id)) > 0
+    assert len(job_manager.query.items(job_id=empty_job.id)) == 0
 
 
 def test_get_jobs(job_manager, completed_job):
@@ -79,11 +78,11 @@ def test_get_jobs(job_manager, completed_job):
         "file:///root/path/project/", "s3://bucket/project/"
     )
     assert (
-        job_manager.query.jobs(JobQueryArgs(status=JobStatus.INITIATED))[0].id
+        job_manager.query.jobs(status=JobStatus.INITIATED)[0].id
         == initiated_job.id
     )
     assert (
-        job_manager.query.jobs(JobQueryArgs(status=JobStatus.DONE))[0].id
+        job_manager.query.jobs(status=JobStatus.DONE)[0].id
         == completed_job.id
     )
 
@@ -91,4 +90,4 @@ def test_get_jobs(job_manager, completed_job):
 def test_delete_job(job_manager, completed_job):
     job_manager.delete_job(completed_job.id)
     assert job_manager.query.job_exists(completed_job.id) == False
-    assert len(job_manager.query.items(ItemQueryArgs(job_id=completed_job.id))) == 0
+    assert len(job_manager.query.items(job_id=completed_job.id)) == 0

@@ -1,6 +1,5 @@
 import typer
 from forwarding_service.job_manager import JobManager
-from forwarding_service.query import ItemQueryArgs
 from rich import print
 from typing_extensions import Annotated
 
@@ -21,15 +20,13 @@ def ls(
 
     jm = JobManager.inspector()
     items = jm.query.items(
-        ItemQueryArgs(
-            id=id,
-            source=source,
-            destination=destination,
-            status=status,
-            job_id=job_id,
-            limit=limit,
-            sort_on=sort_on,
-        )
+        id=id,
+        source=source,
+        destination=destination,
+        status=status,
+        job_id=job_id,
+        limit=limit,
+        sort_on=sort_on,
     )
     items = [item.to_dict() for item in items]
     print(items)

@@ -1,6 +1,5 @@
 import typer
 from forwarding_service.job_manager import JobManager
-from forwarding_service.query import JobQueryArgs
 from rich import print
 from typing_extensions import Annotated
 
@@ -43,7 +42,7 @@ def ls(
 ):
     """list jobs"""
     jm = JobManager.inspector()
-    jobs = jm.query.jobs(JobQueryArgs(id=id, status=status, limit=limit, error=error))
+    jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
     jobs = [job.to_detailed_dict() for job in jobs]
     print(jobs)
 
