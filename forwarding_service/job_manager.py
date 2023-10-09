@@ -5,8 +5,6 @@ from uuid import UUID
 from decouple import config
 from pydantic import validate_call
 
-from forwarding_service.base import BaseReader
-
 from . import make_session
 from .auth import S3StaticCredentials
 from .enum_types import ItemStatus, JobError, JobStatus
@@ -14,7 +12,7 @@ from .exceptions import AuthenticationError
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import Query
-from .reader_writer import ReaderWriter, BaseReaderWriter
+from .reader_writer import BaseReaderWriter, ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
 
@@ -23,7 +21,7 @@ class JobManager:
     def __init__(
         self,
         session,
-        reader_writer: ReaderWriter = BaseReaderWriter(),
+        reader_writer: BaseReaderWriter = BaseReaderWriter(),
         n_procs: int = 1,
     ):
         self.reader_writer = reader_writer
