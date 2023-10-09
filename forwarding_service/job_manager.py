@@ -3,7 +3,7 @@ from multiprocessing import Pool
 from uuid import UUID
 
 from decouple import config
-from pydantic import validate_arguments
+from pydantic import validate_call
 
 from . import make_session
 from .auth import S3StaticCredentials
@@ -129,7 +129,7 @@ class JobManager:
 
         return job
 
-    @validate_arguments
+    @validate_call
     def parse_and_commit_items(self, job_id: UUID):
         """Parse items from given job_id and save in database
 
@@ -174,7 +174,7 @@ class JobManager:
 
         return self.session.query(Item).filter(Item.job_id == job.id).all()
 
-    @validate_arguments
+    @validate_call
     def resume(self, job_id: UUID):
         """Resume Job where status is not Done and file is Parsed
         """
@@ -192,7 +192,7 @@ class JobManager:
         return job
 
 
-    @validate_arguments
+    @validate_call
     def delete_job(self, job_id: UUID):
         job = self.session.get(Job, job_id)
         self.session.delete(job)

@@ -1,11 +1,10 @@
 import fnmatch
 import re
-from uuid import UUID
 
-from flask_sqlalchemy.model import DefaultMeta
+from .models import BaseModel
 
 
-def filter_table(session, model: DefaultMeta, **kwargs):
+def filter_table(session, model: BaseModel, **kwargs):
     """
     Applies filters defined in kwargs on sqlalchemy model.
     Non-matching fields are ignored.

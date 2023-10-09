@@ -1,11 +1,11 @@
-from uuid import UUID
-from pydantic import validate_arguments, BaseModel
 from typing import Optional
+from uuid import UUID
 
-from .models import Job, Item
-from .utils import check_field_exists, check_enum, filter_table
+from pydantic import BaseModel, validate_call
+
 from .enum_types import ItemStatus, JobError, JobStatus
-
+from .models import Item, Job
+from .utils import check_enum, check_field_exists, filter_table
 
 
 class JobQueryArgs(BaseModel):
@@ -15,24 +15,23 @@ class JobQueryArgs(BaseModel):
     limit: int = 50
     sort_on: Optional[str] = None
 
+
 class ItemQueryArgs(JobQueryArgs):
     source: Optional[str] = None
     destination: Optional[str] = None
     status: Optional[ItemStatus] = None
     job_id: Optional[UUID] = None
 
+
 class Query:
     def __init__(self, session):
         self.session = session
 
-    @validate_arguments
+    @validate_call
     def job_exists(self, job_id: UUID):
         return self.session.query(Job).filter(Job.id == job_id).count() > 0
 
-    def jobs(
-        self,
-            query_args: JobQueryArgs
-    ):
+    def jobs(self, query_args: JobQueryArgs):
         """Return Jobs after applying filters
 
         Args:
@@ -73,11 +72,8 @@ class Query:
         # return [job.to_detailed_dict() for job in jobs]
         return jobs
 
-    @validate_arguments
-    def items(
-        self,
-            query_args: ItemQueryArgs
-    ):
+    @validate_call
+    def items(self, query_args: ItemQueryArgs):
         check_field_exists(Item, query_args.sort_on)
         check_enum(ItemStatus, query_args.status)
 
@@ -91,7 +87,7 @@ class Query:
                 "limit": query_args.limit,
                 "sort_on": query_args.sort_on,
                 "in_uri": query_args.source,
-                "out_uri": query_args.destination
+                "out_uri": query_args.destination,
             },
         )
         if query_args.sort_on is not None:
