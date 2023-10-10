@@ -1,6 +1,6 @@
 import pytest
 from forwarding_service.enum_types import ItemStatus, JobError, JobStatus
-from forwarding_service.exceptions import InitError
+from forwarding_service.exceptions import InitDuplicateJobError
 from forwarding_service.models import Item, Job
 from forwarding_service.query import JobQueryArgs, Query
 
@@ -48,7 +48,7 @@ def test_single_file_job(job_manager, n_procs, in_, out_):
 
 
 def test_duplicate_job(job_manager, completed_job):
-    with pytest.raises(InitError):
+    with pytest.raises(InitDuplicateJobError):
         job_manager.init(completed_job.source, completed_job.destination)
 
 

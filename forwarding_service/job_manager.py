@@ -5,7 +5,7 @@ from datetime import datetime
 
 from . import make_session
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import AuthenticationError, InitError, TransferError
+from .exceptions import AuthenticationError, InitSrcError, InitDuplicateJobError, TransferError
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import JobQueryArgs, Query
@@ -42,6 +42,9 @@ class JobManager:
         return job
 
     def run(self, job: Job):
+
+        if job.last_state == JobStatus.DONE:
+            return job
 
         try:
             self.reader_writer.refresh_credentials()
@@ -108,13 +111,13 @@ class JobManager:
 
         job.error = JobError.NONE
         if not self.source_exists(source):
-            raise InitError(f"Source directory {source} not found.")
+            raise InitSrcError(f"Source directory {source} not found.")
 
         duplicate_jobs = Query(self.session, Job).get(
             JobQueryArgs(source=source, destination=destination)
         )
         if duplicate_jobs:
-            raise InitError(
+            raise InitDuplicateJobError(
                 f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}"
             )
 
@@ -124,6 +127,9 @@ class JobManager:
         return job
 
     def parse_and_commit_items(self, job: Job):
+
+        if job.last_state > JobStatus.PARSED:
+            return job
 
         # parse source
         in_uris = self._parse_source(
