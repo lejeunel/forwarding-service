@@ -74,10 +74,30 @@ def test_job_exists(job_manager, completed_job):
 
 def test_invalid_id_raises_exception(job_manager):
     with pytest.raises(Exception):
-        job_manager.query.job_exists("-")
+        job_manager.query.items(job_id="-")
+
+
+def test_get_items(job_manager, completed_job):
+    empty_job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
+    assert len(job_manager.query.items(job_id=completed_job.id)) > 0
+    assert len(job_manager.query.items(job_id=empty_job.id)) == 0
+
+
+def test_get_jobs(job_manager, completed_job):
+    initiated_job = job_manager.init(
+        "file:///root/path/project/", "s3://bucket/project/"
+    )
+    assert (
+        job_manager.query.jobs(status=JobStatus.INITIATED)[0].id
+        == initiated_job.id
+    )
+    assert (
+        job_manager.query.jobs(status=JobStatus.DONE)[0].id
+        == completed_job.id
+    )
 
 
 def test_delete_job(job_manager, completed_job):
     job_manager.delete_job(completed_job.id)
     assert job_manager.query.job_exists(completed_job.id) == False
-    assert len(job_manager.query.items()) == 0
+    assert len(job_manager.query.items(job_id=completed_job.id)) == 0

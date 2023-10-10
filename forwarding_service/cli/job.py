@@ -1,7 +1,5 @@
 import typer
 from forwarding_service.job_manager import JobManager
-from forwarding_service.query import JobQueryArgs
-from forwarding_service.enum_types import JobError, ItemStatus
 from rich import print
 from typing_extensions import Annotated
 
@@ -24,6 +22,7 @@ def run(
     jm.run(job.id)
     print("finished job", job.id)
 
+
 @app.command()
 def resume(
     id: Annotated[str, typer.Argument()],
@@ -42,11 +41,11 @@ def ls(
     limit: Annotated[str, typer.Option()] = 50,
 ):
     """list jobs"""
-    jm = JobManager.local_to_s3()
-    jobs = jm.query.jobs(JobQueryArgs(id=id, status=status, limit=limit, error=error))
-    jobs = [{**dict(job), **{'total_files': len(job.items),
-                             'done_files': len([item for item in job.items if item.status == ItemStatus.TRANSFERRED])}} for job in jobs]
+    jm = JobManager.viewer()
+    jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
+    jobs = [job.to_detailed_dict() for job in jobs]
     print(jobs)
+
 
 @app.command()
 def rm(
@@ -55,6 +54,7 @@ def rm(
     """Delete job and related items"""
     jm = JobManager.local_to_s3()
     jm.delete_job(id)
+
 
 if __name__ == "__main__":
     app()

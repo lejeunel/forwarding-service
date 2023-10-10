@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 import hashlib
 from base64 import b64encode
-from multiprocessing import current_process
 from datetime import datetime
+from multiprocessing import current_process
 
 from .base import BaseReader, BaseWriter
 from .enum_types import ItemStatus, JobError
 from .exceptions import TransferError
 
 
-class ReaderWriter:
+class BaseReaderWriter:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+class ReaderWriter(BaseReaderWriter):
     def __init__(
         self,
         reader: BaseReader,
@@ -27,7 +32,6 @@ class ReaderWriter:
         return checksum
 
     def send(self, in_uri: str, out_uri: str):
-
         try:
             print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
             bytes_, type_ = self.reader(in_uri)

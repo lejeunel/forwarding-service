@@ -2,15 +2,15 @@ from multiprocessing import Pool
 from uuid import UUID
 
 from decouple import config
-from pydantic import validate_arguments
+from pydantic import validate_call
 
 from . import make_session
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import AuthenticationError, InitError
 from .file import FileSystemReader
 from .models import Item, Job
-from .query import Query, JobQueryArgs, ItemQueryArgs
-from .reader_writer import ReaderWriter
+from .query import Query
+from .reader_writer import BaseReaderWriter, ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
 
@@ -19,7 +19,7 @@ class JobManager:
     def __init__(
         self,
         session,
-        reader_writer: ReaderWriter,
+        reader_writer: BaseReaderWriter = BaseReaderWriter(),
         n_procs: int = 1,
     ):
         self.reader_writer = reader_writer
@@ -104,7 +104,6 @@ class JobManager:
         return list_
 
     def init(self, source: str, destination: str, regexp: str = ".*"):
-        breakpoint()
         job = Job(
             source=source,
             destination=destination,
@@ -115,7 +114,7 @@ class JobManager:
         if not self.source_exists(source):
             raise InitError(f"Source directory {source} not found.")
 
-        duplicate_jobs = self.query.jobs(JobQueryArgs(source=source, destination=destination))
+        duplicate_jobs = self.query.jobs(source=source, destination=destination)
         if duplicate_jobs:
             raise InitError(f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}")
 
@@ -124,7 +123,7 @@ class JobManager:
 
         return job
 
-    @validate_arguments
+    @validate_call
     def parse_and_commit_items(self, job_id: UUID):
         """Parse items from given job_id and save in database
 
@@ -172,7 +171,7 @@ class JobManager:
 
         return job
 
-    @validate_arguments
+    @validate_call
     def resume(self, job_id: UUID):
         """Resume Job where status is not Done and file is Parsed
         """
@@ -194,7 +193,7 @@ class JobManager:
         return job
 
 
-    @validate_arguments
+    @validate_call
     def delete_job(self, job_id: UUID):
         jobs = self.query.jobs(JobQueryArgs(id=job_id))
         if not jobs:
@@ -216,3 +215,8 @@ class JobManager:
         job_manager = cls(session=session, reader_writer=rw, n_procs=n_procs)
 
         return job_manager
+
+    @classmethod
+    def viewer(cls, db_url: str=None):
+        session = make_session(db_url)
+        return cls(session=session)
