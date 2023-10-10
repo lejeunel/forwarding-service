@@ -6,7 +6,7 @@ authors = ["Laurent Lejeune <me@lejeunel.org>"]
 readme = "README.org"
 
 [tool.poetry.scripts]
-forwarding_service = "forwarding_service.cli.main:main()"
+forwarding_service = "forwarding_service.cli.main:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
