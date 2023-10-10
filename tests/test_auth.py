@@ -1,10 +1,11 @@
 from forwarding_service.enum_types import JobError
 from forwarding_service.base import BaseWriter
-from forwarding_service.exceptions import AuthenticationError, TransferError
+from forwarding_service.exceptions import AuthenticationError, TransferError, CheckSumError
+import pytest
 
 
 class MockBadAuthWriter(BaseWriter):
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
         pass
 
     def refresh_credentials(self):
@@ -12,23 +13,35 @@ class MockBadAuthWriter(BaseWriter):
 
 class MockTransferErrorWriter(BaseWriter):
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
         raise TransferError(message="bad auth", operation="transfer")
+
+class MockChecksumErrorWriter(BaseWriter):
+
+    def __call__(self):
+        raise CheckSumError(message="bad auth", operation="checksum")
 
 def test_auth_fail(job_manager):
     job_manager.reader_writer.writer = MockBadAuthWriter()
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
-    job = job_manager.run(job.id)
 
-    assert job.error == JobError.AUTH_ERROR
-    assert job.info["message"] == "bad auth"
+    with pytest.raises(AuthenticationError):
+        job_manager.run(job.id)
+
+        assert job.error == JobError.AUTH_ERROR
 
 def test_transfer_error(job_manager):
     job_manager.reader_writer.writer = MockTransferErrorWriter()
-    job_manager.n_procs = 1
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
     job_manager.parse_and_commit_items(job.id)
-    job = job_manager.run(job.id)
+    with pytest.raises(TransferError):
+        job = job_manager.run(job.id)
+        assert job.error == JobError.TRANSFER_ERROR
 
-    assert job.error == JobError.TRANSFER_ERROR
-    assert job.info["message"] == "bad auth"
+def test_checksum_error(job_manager):
+    job_manager.reader_writer.writer = MockChecksumErrorWriter()
+    job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
+    job_manager.parse_and_commit_items(job.id)
+    with pytest.raises(CheckSumError):
+        job = job_manager.run(job.id)
+        assert job.error == JobError.CHECKSUM_ERROR

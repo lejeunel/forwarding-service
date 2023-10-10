@@ -50,22 +50,29 @@ class MockWriter(BaseWriter):
     def refresh_credentials(self):
         pass
 
-
 @pytest.fixture
-def job_manager():
-    rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
+def engine():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
+    yield engine
 
+    SQLModel.metadata.drop_all(engine)
 
-    SQLModel.metadata.create_all(engine)
+@pytest.fixture
+def session(engine):
+
     session = Session(engine)
+    yield session
+
+@pytest.fixture
+def job_manager(session):
+
+    rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
     job_manager = JobManager(session=session, reader_writer=rw)
 
 
     yield job_manager
 
-    SQLModel.metadata.drop_all(engine)
 
 @pytest.fixture
 def completed_job(job_manager):

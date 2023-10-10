@@ -1,5 +1,8 @@
 import typer
 from forwarding_service.job_manager import JobManager
+from forwarding_service.query import Query, JobQueryArgs
+from forwarding_service import make_session
+from forwarding_service.models import Job
 from rich import print
 from typing_extensions import Annotated
 
@@ -35,15 +38,19 @@ def resume(
 
 @app.command()
 def ls(
-    id: Annotated[str, typer.Option()] = None,
-    status: Annotated[str, typer.Option()] = None,
-    error: Annotated[str, typer.Option()] = None,
-    limit: Annotated[str, typer.Option()] = 50,
+    id: Annotated[str, typer.Option()] | None = None,
+    status: Annotated[str, typer.Option()] | None = None,
+    error: Annotated[str, typer.Option()] | None = None,
+    source: Annotated[str, typer.Option()] | None = None,
+    destination: Annotated[str, typer.Option()] | None = None,
+    limit: Annotated[int, typer.Option()] = 50,
 ):
     """list jobs"""
-    jm = JobManager.viewer()
-    jobs = jm.query.jobs(id=id, status=status, limit=limit, error=error)
-    jobs = [job.to_detailed_dict() for job in jobs]
+    args = dict(locals())
+    query = Query(make_session(), Job)
+    jobs = query.get(JobQueryArgs(id=id, status=status, limit=limit, error=error,
+                                  source=source, destination=destination))
+    jobs = [dict(job) for job in jobs]
     print(jobs)
 
 

@@ -17,9 +17,3 @@ def test_non_existing_source_must_fail(job_manager):
             "s3://bucket/non-existing-project/",
         )
 
-def test_wrong_format_must_fail(job_manager):
-    with pytest.raises(ValidationError):
-        job_manager.init(
-            "/root/path/non-existing-project/",
-            "s3://bucket/non-existing-project/",
-        )

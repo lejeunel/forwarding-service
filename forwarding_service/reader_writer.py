@@ -32,33 +32,14 @@ class ReaderWriter(BaseReaderWriter):
         return checksum
 
     def send(self, in_uri: str, out_uri: str):
-        try:
-            print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
-            bytes_, type_ = self.reader(in_uri)
+        print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
+        bytes_, type_ = self.reader(in_uri)
 
-            checksum = None
-            if self.do_checksum:
-                checksum = self.compute_sha256_checksum(bytes_)
+        checksum = None
+        if self.do_checksum:
+            checksum = self.compute_sha256_checksum(bytes_)
 
-            self.writer(bytes_, out_uri, type_, checksum)
-
-        except TransferError as e:
-            return {
-                "item": {"status": ItemStatus.PENDING},
-                "job": {
-                    "error": JobError.TRANSFER_ERROR,
-                    "info": {"message": e.message, "operation": e.operation},
-                },
-            }
-
-        return {
-            "item": {"status": ItemStatus.TRANSFERRED,
-                     'transferred_at': datetime.now()},
-            "job": {
-                "error": JobError.NONE,
-                "info": None,
-            },
-        }
+        self.writer(bytes_, out_uri, type_, checksum)
 
     def refresh_credentials(self):
         self.reader.refresh_credentials()

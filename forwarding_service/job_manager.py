@@ -2,14 +2,15 @@ from multiprocessing import Pool
 from uuid import UUID
 
 from decouple import config
-from pydantic import validate_call
+from pydantic import validate_arguments
+from datetime import datetime
 
 from . import make_session
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import AuthenticationError, InitError
+from .exceptions import AuthenticationError, InitError, TransferError
 from .file import FileSystemReader
 from .models import Item, Job
-from .query import Query
+from .query import JobQueryArgs, Query
 from .reader_writer import BaseReaderWriter, ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
@@ -25,22 +26,18 @@ class JobManager:
         self.reader_writer = reader_writer
         self.n_procs = n_procs
         self.session = session
-        self.query = Query(session)
 
     def run_parallel(self, items: list[Item]):
         in_out_uris = [(i.in_uri, i.out_uri) for i in items]
         with Pool(self.n_procs) as p:
-            results = p.starmap(self.reader_writer.send, in_out_uris)
+            p.starmap(self.reader_writer.send, in_out_uris)
 
-        job_meta = sorted([r["job"] for r in results], key=lambda r: r["error"])[-1]
         job = self.session.get(Job, items[0].job_id)
-        job.error = job_meta["error"]
-        job.info = job_meta["info"]
+        job.last_state = JobStatus.DONE
 
-        # TODO should be bulk update here
-        for item, res in zip(items, results):
-            item.status = res["item"]["status"]
-            item.transferred_at = res["item"]["transferred_at"]
+        for item in job.items:
+            item.status = ItemStatus.TRANSFERRED
+            item.transferred_at = datetime.now()
 
         self.session.commit()
 
@@ -55,7 +52,7 @@ class JobManager:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.message, "operation": e.operation}
             self.session.commit()
-            return job
+            raise AuthenticationError(message = e.message, operation=e.operation)
 
         # filter-out items that are already transferred (happens on resume)
         items = (
@@ -69,16 +66,18 @@ class JobManager:
             job = self.run_parallel(items)
         else:
             for item in items:
-                res = self.reader_writer.send(item.in_uri, item.out_uri)
+                try:
+                    self.reader_writer.send(item.in_uri, item.out_uri)
+                    item.transferred_at = datetime.now()
+                    item.status = ItemStatus.TRANSFERRED
+                    self.session.commit()
+                except TransferError as e:
+                    job.error = JobError.TRANSFER_ERROR
+                    job.info = e.message
+                    self.session.commit()
+                    raise e
 
-                if res['job']['error'] == JobError.NONE:
-                    item.transferred_at = res["item"]["transferred_at"]
-                item.status = res["item"]["status"]
-                job.error = res["job"]["error"]
-                job.info = res["job"]["info"]
-                self.session.commit()
 
-        if job.error == JobError.NONE:
             job.last_state = JobStatus.DONE
             self.session.commit()
 
@@ -114,16 +113,20 @@ class JobManager:
         if not self.source_exists(source):
             raise InitError(f"Source directory {source} not found.")
 
-        duplicate_jobs = self.query.jobs(source=source, destination=destination)
+        duplicate_jobs = Query(self.session, Job).get(
+            JobQueryArgs(source=source, destination=destination)
+        )
         if duplicate_jobs:
-            raise InitError(f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}")
+            raise InitError(
+                f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}"
+            )
 
         self.session.add(job)
         self.session.commit()
 
         return job
 
-    @validate_call
+    @validate_arguments
     def parse_and_commit_items(self, job_id: UUID):
         """Parse items from given job_id and save in database
 
@@ -134,9 +137,9 @@ class JobManager:
             Item: return all parsed items
         """
 
-        jobs = self.query.jobs(JobQueryArgs(id=job_id))
+        jobs = Query(self.session, Job).get(JobQueryArgs(id=job_id))
         if not jobs:
-            raise Exception(f'Could not find job with id {job_id}')
+            raise Exception(f"Could not find job with id {job_id}")
 
         job = jobs[0]
 
@@ -171,14 +174,13 @@ class JobManager:
 
         return job
 
-    @validate_call
+    @validate_arguments
     def resume(self, job_id: UUID):
-        """Resume Job where status is not Done and file is Parsed
-        """
+        """Resume Job where status is not Done and file is Parsed"""
 
-        jobs = self.query.jobs(JobQueryArgs(id=job_id))
+        jobs = Query(self.session, Job).get(JobQueryArgs(id=job_id))
         if not jobs:
-            raise Exception(f'Could not find job with id {job_id}')
+            raise Exception(f"Could not find job with id {job_id}")
 
         job = jobs[0]
 
@@ -192,31 +194,12 @@ class JobManager:
 
         return job
 
-
-    @validate_call
-    def delete_job(self, job_id: UUID):
-        jobs = self.query.jobs(JobQueryArgs(id=job_id))
-        if not jobs:
-            raise Exception(f'Could not find job with id {job_id}')
-
-        job = jobs[0]
-
-        self.session.delete(job)
-        self.session.commit()
-
-
     @classmethod
     def local_to_s3(cls, db_url: str = None, n_procs: int = 1):
-
-        writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", 'default'))
+        writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default"))
         rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
 
         session = make_session(db_url)
         job_manager = cls(session=session, reader_writer=rw, n_procs=n_procs)
 
         return job_manager
-
-    @classmethod
-    def viewer(cls, db_url: str=None):
-        session = make_session(db_url)
-        return cls(session=session)

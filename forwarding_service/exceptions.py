@@ -1,14 +1,17 @@
-class TransferError(Exception):
+class RemoteException(Exception):
     def __init__(self, message, operation):
 
         self.message = message
         self.operation = operation
 
-class AuthenticationError(Exception):
-    def __init__(self, message, operation):
+class TransferError(RemoteException):
+    pass
 
-        self.message = message
-        self.operation = operation
+class AuthenticationError(RemoteException):
+    pass
+
+class CheckSumError(RemoteException):
+    pass
 
 class InitError(Exception):
     def __init__(self, message):

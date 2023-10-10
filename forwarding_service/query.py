@@ -1,90 +1,75 @@
+from datetime import datetime
 from uuid import UUID
 
-from pydantic import validate_call
+from pydantic import BaseModel, validate_arguments
+from sqlmodel import Session
 
 from .enum_types import ItemStatus, JobError, JobStatus
-from .models import Item, Job
-from .utils import check_enum, check_field_exists, filter_table
+from .models import Job
+from .utils import check_field_exists, filter_table
+
+
+class QueryArgs(BaseModel):
+    id: UUID | None = None
+    limit: int = 50
+    sort_on: str | None = None
+    source: str | None = None
+    destination: str | None = None
+
+
+class JobQueryArgs(QueryArgs):
+    last_state: JobStatus | None = None
+    error: JobError | None = None
+    created_at: datetime | None = None
+
+
+class ItemQueryArgs(QueryArgs):
+    status: ItemStatus | None = None
+    job_id: UUID | None = None
 
 
 class Query:
-    def __init__(self, session):
+    def __init__(self, session: Session, model: BaseModel):
         self.session = session
+        self.model = model
 
-    @validate_call
-    def job_exists(self, job_id: UUID):
-        return self.session.query(Job).filter(Job.id == job_id).count() > 0
-
-    @validate_call
-    def jobs(
-        self,
-        id: UUID | None = None,
-        status: JobStatus | None = None,
-        error: JobError | None = None,
-        limit: int = 50,
-        sort_on: str | None = None,
-    ):
-        """Return Jobs after applying filters"""
-        from .models import Job
-
-        check_field_exists(Job, sort_on)
-        check_enum(JobStatus, status)
-        check_enum(JobError, error)
+    @validate_arguments
+    def get(self, query_args: QueryArgs | None = QueryArgs()):
+        check_field_exists(self.model, query_args.sort_on)
 
         query = filter_table(
             self.session,
-            Job,
-            **{
-                "id": id,
-                "last_state": status,
-                "error": error,
-                "limit": limit,
-                "sort_on": sort_on,
-            },
+            self.model,
+            **dict(query_args),
         )
 
-        if sort_on is not None:
-            field = getattr(Job, sort_on)
+        if query_args.sort_on is not None:
+            field = getattr(Job, query_args.sort_on)
             query = query.order_by(field.desc())
 
-        query = query.limit(limit)
+        query = query.limit(query_args.limit)
 
-        jobs = query.all()[::-1]
+        objects = query.all()[::-1]
 
-        return jobs
+        return objects
 
-    @validate_call
-    def items(
-        self,
-        id: UUID | None = None,
-        job_id: UUID | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        status: ItemStatus | None = None,
-        limit: int = 50,
-        sort_on: str | None = None,
-    ):
-        check_field_exists(Item, sort_on)
-        check_enum(ItemStatus, status)
+    @validate_arguments
+    def exists(self, id: UUID):
+        count = self.session.query(self.model).count()
 
-        query = filter_table(
-            self.session,
-            Item,
-            **{
-                "id": id,
-                "job_id": job_id,
-                "status": status,
-                "limit": limit,
-                "sort_on": sort_on,
-                "in_uri": source,
-                "out_uri": destination,
-            },
-        )
-        if sort_on is not None:
-            field = getattr(Item, sort_on)
-            query = query.order_by(field)
+        if count > 0:
+            return True
 
-        query = query.limit(limit)
-        items = query.all()
+        return False
 
-        return items
+    @validate_arguments
+    def delete(self, query_args: QueryArgs | None = QueryArgs()):
+        objects = self.get(query_args)
+        if len(objects) == 0:
+            raise Exception(
+                f"Could not find {type(self.model)} with query arguments {dict(query_args)}"
+            )
+
+        for obj in objects:
+            self.session.delete(obj)
+            self.session.commit()
