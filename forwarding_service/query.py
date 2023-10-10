@@ -17,7 +17,7 @@ class JobQueryArgs(BaseModel):
     sort_on: Optional[str] = None
     source: Optional[str] = None
     destination: Optional[str] = None
-    created_at: Optional[datetime]
+    created_at: Optional[datetime] = None
 
 class ItemQueryArgs(BaseModel):
     id: Optional[UUID] = None

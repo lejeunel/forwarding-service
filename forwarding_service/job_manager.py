@@ -6,7 +6,7 @@ from pydantic import validate_arguments
 
 from . import make_session
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import AuthenticationError
+from .exceptions import AuthenticationError, InitError
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import Query, JobQueryArgs, ItemQueryArgs
@@ -84,7 +84,7 @@ class JobManager:
 
         return job
 
-    def source_exists(self, uri: UUID):
+    def source_exists(self, uri: str):
         return self.reader_writer.reader.exists(uri)
 
     def parse_source(
@@ -104,6 +104,7 @@ class JobManager:
         return list_
 
     def init(self, source: str, destination: str, regexp: str = ".*"):
+        breakpoint()
         job = Job(
             source=source,
             destination=destination,
@@ -111,20 +112,12 @@ class JobManager:
         )
 
         job.error = JobError.NONE
-        init_error = False
-        messages = []
         if not self.source_exists(source):
-            init_error = True
-            messages.append(f"Source directory {source} not found.")
+            raise InitError(f"Source directory {source} not found.")
 
         duplicate_jobs = self.query.jobs(JobQueryArgs(source=source, destination=destination))
         if duplicate_jobs:
-            init_error = True
-            messages.append(f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}")
-
-        if init_error:
-            job.error = JobError.INIT_ERROR
-            job.info = {"message": messages}
+            raise InitError(f"Found duplicate job (id: {duplicate_jobs[0].id}) with source {source} and destination {destination}")
 
         self.session.add(job)
         self.session.commit()
@@ -142,7 +135,11 @@ class JobManager:
             Item: return all parsed items
         """
 
-        job = self.session.get(Job, job_id)
+        jobs = self.query.jobs(JobQueryArgs(id=job_id))
+        if not jobs:
+            raise Exception(f'Could not find job with id {job_id}')
+
+        job = jobs[0]
 
         # parse source
         in_uris = self.parse_source(
@@ -173,14 +170,18 @@ class JobManager:
         job.last_state = JobStatus.PARSED
         self.session.commit()
 
-        return self.session.query(Item).filter(Item.job_id == job.id).all()
+        return job
 
     @validate_arguments
     def resume(self, job_id: UUID):
         """Resume Job where status is not Done and file is Parsed
         """
 
-        job = self.session.get(Job, job_id)
+        jobs = self.query.jobs(JobQueryArgs(id=job_id))
+        if not jobs:
+            raise Exception(f'Could not find job with id {job_id}')
+
+        job = jobs[0]
 
         if job.last_state < JobStatus.DONE:
             job.error = JobError.NONE
@@ -195,7 +196,12 @@ class JobManager:
 
     @validate_arguments
     def delete_job(self, job_id: UUID):
-        job = self.query.jobs(JobQueryArgs(id=job_id))[0]
+        jobs = self.query.jobs(JobQueryArgs(id=job_id))
+        if not jobs:
+            raise Exception(f'Could not find job with id {job_id}')
+
+        job = jobs[0]
+
         self.session.delete(job)
         self.session.commit()
 

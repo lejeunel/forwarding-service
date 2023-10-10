@@ -9,15 +9,13 @@ class ItemStatus(enum.IntEnum):
 
 class JobStatus(enum.IntEnum):
 
-    INITIATED = 0
-    PARSED = 1
-    DONE = 2
+    PARSED = 0
+    DONE = 1
 
 
 class JobError(enum.IntEnum):
 
     NONE = 0
-    INIT_ERROR = 1
-    TRANSFER_ERROR = 2
-    CHECKSUM_ERROR = 3
-    AUTH_ERROR = 4
+    TRANSFER_ERROR = 1
+    CHECKSUM_ERROR = 2
+    AUTH_ERROR = 3

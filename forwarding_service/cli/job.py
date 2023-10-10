@@ -18,14 +18,11 @@ def run(
     """Run job"""
     jm = JobManager.local_to_s3(n_procs=n_procs)
     job = jm.init(source, destination, regexp)
-    if job.error != JobError.INIT_ERROR:
-        print("created job", job.id)
-        jm.parse_and_commit_items(job.id)
-        print("parsed job", job.id)
-        jm.run(job.id)
-        print("finished job", job.id)
-    else:
-        print(f"Error: {str(job.error)} {job.info}")
+    print("created job", job.id)
+    jm.parse_and_commit_items(job.id)
+    print("parsed job", job.id)
+    jm.run(job.id)
+    print("finished job", job.id)
 
 @app.command()
 def resume(
