@@ -50,6 +50,7 @@ class MockWriter(BaseWriter):
     def refresh_credentials(self):
         pass
 
+
 @pytest.fixture
 def engine():
     engine = create_engine("sqlite://")
@@ -58,18 +59,17 @@ def engine():
 
     SQLModel.metadata.drop_all(engine)
 
+
 @pytest.fixture
 def session(engine):
-
     session = Session(engine)
     yield session
 
+
 @pytest.fixture
 def job_manager(session):
-
     rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
     job_manager = JobManager(session=session, reader_writer=rw)
-
 
     yield job_manager
 
@@ -77,13 +77,14 @@ def job_manager(session):
 @pytest.fixture
 def completed_job(job_manager):
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
-    job_manager.parse_and_commit_items(job.id)
-    job_manager.run(job.id)
+    job_manager.parse_and_commit_items(job)
+    job_manager.run(job)
 
     yield job
 
+
 @pytest.fixture
-def partial_job(job_manager, completed_job):
+def failed_job(session, completed_job):
     """simulate failed job with one item pending"""
 
     item = completed_job.items[0]
@@ -92,7 +93,6 @@ def partial_job(job_manager, completed_job):
     item.status = ItemStatus.PENDING
     job.error = JobError.TRANSFER_ERROR
     job.last_state = JobStatus.PARSED
-    job_manager.session.commit()
+    session.commit()
 
     yield job
-

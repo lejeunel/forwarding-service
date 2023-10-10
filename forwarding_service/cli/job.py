@@ -20,9 +20,9 @@ def run(
     jm = JobManager.local_to_s3(n_procs=n_procs)
     job = jm.init(source, destination, regexp)
     print("created job", job.id)
-    jm.parse_and_commit_items(job.id)
+    jm.parse_and_commit_items(job)
     print("parsed job", job.id)
-    jm.run(job.id)
+    jm.run(job)
     print("finished job", job.id)
 
 
@@ -33,7 +33,11 @@ def resume(
 ):
     """Resume job"""
     jm = JobManager.local_to_s3(n_procs=n_procs)
-    jm.resume(id)
+    query = Query(make_session(), Job)
+    if query.exists(id):
+        jm.resume(query.get(JobQueryArgs(id=id))[0])
+    else:
+        f'{id} not found'
 
 
 @app.command()
@@ -48,9 +52,8 @@ def ls(
     """list jobs"""
     args = dict(locals())
     query = Query(make_session(), Job)
-    jobs = query.get(JobQueryArgs(id=id, status=status, limit=limit, error=error,
-                                  source=source, destination=destination))
-    jobs = [dict(job) for job in jobs]
+    jobs = query.get(JobQueryArgs(**args))
+    jobs = [job.to_detailed_dict() for job in jobs]
     print(jobs)
 
 

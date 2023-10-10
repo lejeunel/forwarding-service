@@ -1,8 +1,6 @@
 from multiprocessing import Pool
-from uuid import UUID
 
 from decouple import config
-from pydantic import validate_arguments
 from datetime import datetime
 
 from . import make_session
@@ -43,8 +41,7 @@ class JobManager:
 
         return job
 
-    def run(self, job_id: UUID):
-        job = self.session.get(Job, job_id)
+    def run(self, job: Job):
 
         try:
             self.reader_writer.refresh_credentials()
@@ -86,7 +83,7 @@ class JobManager:
     def source_exists(self, uri: str):
         return self.reader_writer.reader.exists(uri)
 
-    def parse_source(
+    def _parse_source(
         self,
         uri: str,
         files_only: bool = False,
@@ -126,25 +123,10 @@ class JobManager:
 
         return job
 
-    @validate_arguments
-    def parse_and_commit_items(self, job_id: UUID):
-        """Parse items from given job_id and save in database
-
-        Args:
-            job_id (str): Job id
-
-        Returns:
-            Item: return all parsed items
-        """
-
-        jobs = Query(self.session, Job).get(JobQueryArgs(id=job_id))
-        if not jobs:
-            raise Exception(f"Could not find job with id {job_id}")
-
-        job = jobs[0]
+    def parse_and_commit_items(self, job: Job):
 
         # parse source
-        in_uris = self.parse_source(
+        in_uris = self._parse_source(
             job.source,
             files_only=True,
             pattern_filter=job.regexp,
@@ -174,23 +156,16 @@ class JobManager:
 
         return job
 
-    @validate_arguments
-    def resume(self, job_id: UUID):
+    def resume(self, job: Job):
         """Resume Job where status is not Done and file is Parsed"""
-
-        jobs = Query(self.session, Job).get(JobQueryArgs(id=job_id))
-        if not jobs:
-            raise Exception(f"Could not find job with id {job_id}")
-
-        job = jobs[0]
 
         if job.last_state < JobStatus.DONE:
             job.error = JobError.NONE
             job.info = None
             self.session.commit()
-            self.run(job.id)
+            self.run(job)
         else:
-            print(f"Job {job_id} already done.")
+            print(f"Job {job.id} already done.")
 
         return job
 

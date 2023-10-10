@@ -15,8 +15,8 @@ from forwarding_service.query import JobQueryArgs, Query
 def test_multiple_files_job(job_manager, n_procs, in_, out_):
     job_manager.n_procs = n_procs
     job = job_manager.init(in_, out_)
-    job_manager.parse_and_commit_items(job.id)
-    job_manager.run(job.id)
+    job_manager.parse_and_commit_items(job)
+    job_manager.run(job)
     assert job.last_state == JobStatus.DONE
     assert job.error == JobError.NONE
     assert all(item.status == ItemStatus.TRANSFERRED for item in job.items)
@@ -35,8 +35,8 @@ def test_single_file_job(job_manager, n_procs, in_, out_):
     job_manager.n_procs = n_procs
     expected_out = "s3://bucket/project/file_1.ext"
     job = job_manager.init(in_, out_)
-    job = job_manager.parse_and_commit_items(job.id)
-    job_manager.run(job.id)
+    job = job_manager.parse_and_commit_items(job)
+    job_manager.run(job)
     assert len(job.items) == 1
     item = job.items[0]
 
@@ -52,15 +52,15 @@ def test_duplicate_job(job_manager, completed_job):
         job_manager.init(completed_job.source, completed_job.destination)
 
 
-def test_resume_failed_job(job_manager, partial_job):
-    job = job_manager.resume(partial_job.id)
+def test_resume_failed_job(job_manager, failed_job):
+    job = job_manager.resume(failed_job)
     assert job.last_state == JobStatus.DONE
     assert job.error == JobError.NONE
     assert all([i.status == ItemStatus.TRANSFERRED for i in job.items])
 
 
 def test_resume_completed_job(job_manager, completed_job):
-    job = job_manager.resume(completed_job.id)
+    job = job_manager.resume(completed_job)
     assert job.last_state == JobStatus.DONE
     assert job.error == JobError.NONE
     assert all([i.status == ItemStatus.TRANSFERRED for i in job.items])
