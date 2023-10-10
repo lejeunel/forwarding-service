@@ -5,7 +5,12 @@ from datetime import datetime
 
 from . import make_session
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import AuthenticationError, InitSrcError, InitDuplicateJobError, TransferError
+from .exceptions import (
+    AuthenticationError,
+    InitSrcError,
+    InitDuplicateJobError,
+    TransferError,
+)
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import JobQueryArgs, Query
@@ -42,7 +47,6 @@ class JobManager:
         return job
 
     def run(self, job: Job):
-
         if job.last_state == JobStatus.DONE:
             return job
 
@@ -52,7 +56,7 @@ class JobManager:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.message, "operation": e.operation}
             self.session.commit()
-            raise AuthenticationError(message = e.message, operation=e.operation)
+            raise AuthenticationError(message=e.message, operation=e.operation)
 
         # filter-out items that are already transferred (happens on resume)
         items = (
@@ -76,7 +80,6 @@ class JobManager:
                     job.info = e.message
                     self.session.commit()
                     raise e
-
 
             job.last_state = JobStatus.DONE
             self.session.commit()
@@ -127,7 +130,6 @@ class JobManager:
         return job
 
     def parse_and_commit_items(self, job: Job):
-
         if job.last_state > JobStatus.PARSED:
             return job
 
@@ -176,8 +178,10 @@ class JobManager:
         return job
 
     @classmethod
-    def local_to_s3(cls, db_url: str = None, n_procs: int = 1):
-        writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default"))
+    def local_to_s3(cls, db_url: str = None, aws_profile: str = None, n_procs: int = 1):
+        if aws_profile is None:
+            aws_profile = config("FORW_SERV_AWS_PROFILE_NAME", "default")
+        writer = S3Writer(profile_name=aws_profile)
         rw = ReaderWriter(reader=FileSystemReader(), writer=writer)
 
         session = make_session(db_url)
