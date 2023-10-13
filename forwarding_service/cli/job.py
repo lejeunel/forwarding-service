@@ -14,10 +14,10 @@ def run(
     source: Annotated[str, typer.Argument()],
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
-    n_procs: Annotated[int, typer.Option()] = 1,
+    n_threads: Annotated[int, typer.Option()] = 1,
 ):
     """Run job"""
-    jm = JobManager.local_to_s3(n_procs=n_procs)
+    jm = JobManager.local_to_s3(n_threads=n_threads)
     job = jm.init(source, destination, regexp)
     print("created job", job.id)
     jm.parse_and_commit_items(job)
@@ -29,10 +29,10 @@ def run(
 @app.command()
 def resume(
     id: Annotated[str, typer.Argument()],
-    n_procs: Annotated[int, typer.Option()] = 1,
+    n_threads: Annotated[int, typer.Option()] = 1,
 ):
     """Resume job"""
-    jm = JobManager.local_to_s3(n_procs=n_procs)
+    jm = JobManager.local_to_s3(n_threads=n_threads)
     query = Query(make_session(), Job)
     if query.exists(id):
         jm.resume(query.get(JobQueryArgs(id=id))[0])

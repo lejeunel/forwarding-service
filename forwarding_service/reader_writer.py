@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 import hashlib
 from base64 import b64encode
-from datetime import datetime
 from multiprocessing import current_process
 
 from .base import BaseReader, BaseWriter
-from .enum_types import ItemStatus, JobError
-from .exceptions import TransferError
 
 
 class BaseReaderWriter:

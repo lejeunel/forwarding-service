@@ -6,14 +6,14 @@ from forwarding_service.query import JobQueryArgs, Query
 
 
 @pytest.mark.parametrize(
-    "n_procs,in_,out_",
+    "n_threads,in_,out_",
     [
         (1, "file:///root/path/project/", "s3://bucket/project/"),
         (2, "file:///root/path/project/", "s3://bucket/project/"),
     ],
 )
-def test_multiple_files_job(job_manager, n_procs, in_, out_):
-    job_manager.n_procs = n_procs
+def test_multiple_files_job(job_manager, n_threads, in_, out_):
+    job_manager.n_threads = n_threads
     job = job_manager.init(in_, out_)
     job_manager.parse_and_commit_items(job)
     job_manager.run(job)
@@ -24,15 +24,15 @@ def test_multiple_files_job(job_manager, n_procs, in_, out_):
 
 
 @pytest.mark.parametrize(
-    "n_procs,in_,out_",
+    "n_threads,in_,out_",
     [
         (1, "file:///root/path/project/file_1.ext", "s3://bucket/project/file_1.ext"),
         (2, "file:///root/path/project/file_1.ext", "s3://bucket/project/file_1.ext"),
         (1, "file:///root/path/project/file_1.ext", "s3://bucket/project/"),
     ],
 )
-def test_single_file_job(job_manager, n_procs, in_, out_):
-    job_manager.n_procs = n_procs
+def test_single_file_job(job_manager, n_threads, in_, out_):
+    job_manager.n_threads = n_threads
     expected_out = "s3://bucket/project/file_1.ext"
     job = job_manager.init(in_, out_)
     job = job_manager.parse_and_commit_items(job)
