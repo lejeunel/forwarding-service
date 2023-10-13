@@ -66,7 +66,7 @@ class JobManager:
 
         job.error = JobError.NONE
         if not self._source_exists(source):
-            raise InitError(f"Source directory {source} not found.")
+            raise InitSrcError(f"Source directory {source} not found.")
 
         duplicate_jobs = Query(self.session, Job).get(
             JobQueryArgs(source=source, destination=destination)
