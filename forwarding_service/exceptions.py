@@ -4,21 +4,21 @@ class RemoteException(Exception):
         self.message = message
         self.operation = operation
 
-class TransferError(RemoteException):
+class TransferException(RemoteException):
     pass
 
 class AuthenticationError(RemoteException):
     pass
 
-class CheckSumError(RemoteException):
+class CheckSumException(RemoteException):
     pass
 
-class InitSrcError(Exception):
+class InitSrcException(Exception):
     def __init__(self, message):
 
         self.message = message
 
-class InitDuplicateJobError(Exception):
+class InitDuplicateJobException(Exception):
     def __init__(self, message):
 
         self.message = message

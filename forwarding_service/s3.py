@@ -4,7 +4,7 @@ from .base import BaseWriter
 import copy
 from urllib.parse import urlparse
 from .auth import BaseAuthenticator
-from .exceptions import TransferError
+from .exceptions import TransferException
 from aws_error_utils import get_aws_error_info
 
 
@@ -46,7 +46,7 @@ class S3Writer(BaseWriter):
             )
         except BotoClientError as e:
             e = get_aws_error_info(e)
-            raise TransferError(message=e.message, operation=e.operation_name)
+            raise TransferException(message=e.message, operation=e.operation_name)
 
     def refresh_credentials(self):
         pass

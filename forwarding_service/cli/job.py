@@ -14,7 +14,7 @@ def run(
     source: Annotated[str, typer.Argument()],
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
-    n_threads: Annotated[int, typer.Option()] = 1,
+    n_threads: Annotated[int, typer.Option()] = 10,
 ):
     """Run job"""
     jm = JobManager.local_to_s3(n_threads=n_threads)
@@ -29,7 +29,7 @@ def run(
 @app.command()
 def resume(
     id: Annotated[str, typer.Argument()],
-    n_threads: Annotated[int, typer.Option()] = 1,
+    n_threads: Annotated[int, typer.Option()] = 10,
 ):
     """Resume job"""
     jm = JobManager.local_to_s3(n_threads=n_threads)
@@ -62,8 +62,8 @@ def rm(
     id: Annotated[str, typer.Argument()],
 ):
     """Delete job and related items"""
-    jm = JobManager.local_to_s3()
-    jm.delete_job(id)
+    query = Query(make_session(), Job)
+    query.delete(JobQueryArgs(id=id))
 
 
 if __name__ == "__main__":

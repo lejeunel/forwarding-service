@@ -7,6 +7,7 @@ from forwarding_service.base import BaseReader, BaseWriter
 from forwarding_service.enum_types import ItemStatus, JobError, JobStatus
 from forwarding_service.job_manager import JobManager
 from forwarding_service.reader_writer import ReaderWriter
+from forwarding_service.batch_reader_writer import BatchReaderWriter
 from sqlmodel import Session, SQLModel, create_engine
 
 
@@ -69,7 +70,8 @@ def session(engine):
 @pytest.fixture
 def job_manager(session):
     rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
-    job_manager = JobManager(session=session, reader_writer=rw)
+    brw = BatchReaderWriter(rw)
+    job_manager = JobManager(session=session, batch_reader_writer=brw)
 
     yield job_manager
 
