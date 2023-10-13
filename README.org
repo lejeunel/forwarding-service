@@ -2,11 +2,12 @@
 
 ** Introduction
 
-This lightweight app allows robust and resilient transfer of data from a local filesystem to a remote storage.
+This lightweight app allows robust and resilient transfer of data.
+
 It is specifically designed for large data volumes, where one would like to keep track of accomplished transactions.
 This would then allow to resume the transfer job where it was left off in case of failure.
 
-As of today, we support local file-system as source, and S3 bucket as destination.
+We support local file-system as source, and S3 bucket as destination, but this can be easily modified if needed.
 
 Under the hood, this app leverages an SQLite database that stores transactions. In particular, each upload job will comprise one or more data items (or files).
 
@@ -19,14 +20,6 @@ poetry install
 #+end_src
 
 ** Configuration
-
-*** AWS authentication
-
-At run-time, we check for variables ~AWS_ACCESS_KEY_ID~ and ~AWS_SECRET_ACCESS_KEY~ at these locations, and in order of precedence:
-
-1. In your environment variables
-2. In a ~.env~ file located in project's root.
-3. In your ~.aws/credentials~ file as explained [[https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html][here]].
 
 ***  Local database
 

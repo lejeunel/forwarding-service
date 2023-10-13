@@ -9,8 +9,9 @@ class ItemStatus(enum.IntEnum):
 
 class JobStatus(enum.IntEnum):
 
-    PARSED = 0
-    DONE = 1
+    INIT = 0
+    PARSED = 1
+    DONE = 2
 
 
 class JobError(enum.IntEnum):

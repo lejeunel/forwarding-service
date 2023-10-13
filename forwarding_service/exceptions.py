@@ -13,7 +13,12 @@ class AuthenticationError(RemoteException):
 class CheckSumError(RemoteException):
     pass
 
-class InitError(Exception):
+class InitSrcError(Exception):
+    def __init__(self, message):
+
+        self.message = message
+
+class InitDuplicateJobError(Exception):
     def __init__(self, message):
 
         self.message = message

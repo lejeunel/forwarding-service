@@ -14,7 +14,7 @@ class Job(SQLModel, table=True):
     id: Optional[UUID] = Field(
         default_factory=uuid.uuid4, primary_key=True, index=True, nullable=False
     )
-    last_state: JobStatus = Field(sa_column=Column(Enum(JobStatus)))
+    last_state: JobStatus = Field(sa_column=Column(Enum(JobStatus)), default=JobStatus.INIT)
     error: JobError = Field(sa_column=Column(Enum(JobError)))
 
     info: Dict[Any, Any] = Field(index=False, sa_column=Column(JSON))
