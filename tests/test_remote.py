@@ -14,21 +14,21 @@ class MockBadAuthWriter(BaseWriter):
         pass
 
     def refresh_credentials(self):
-        raise AuthenticationError(message="bad auth", operation="authentication")
+        raise AuthenticationError(error="bad auth", operation="authentication")
 
 
 class MockTransferErrorWriter(BaseWriter):
     def __call__(self, *args, **kwargs):
-        raise TransferException(message="bad auth", operation="transfer")
+        raise TransferException(error="bad auth", operation="transfer")
 
 
 class MockChecksumErrorWriter(BaseWriter):
     def __call__(self, *args, **kwargs):
-        raise CheckSumException(message="bad auth", operation="checksum")
+        raise CheckSumException(error="bad auth", operation="checksum")
 
 
 def test_auth_fail(job_manager):
-    job_manager.batch_reader_writer.reader_writer.writer = MockBadAuthWriter()
+    job_manager.batch_rw.reader_writer.writer = MockBadAuthWriter()
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
 
     with pytest.raises(AuthenticationError):
@@ -42,8 +42,8 @@ def test_auth_fail(job_manager):
     [1, 2],
 )
 def test_transfer_error(job_manager, n_threads):
-    job_manager.batch_reader_writer.reader_writer.writer = MockTransferErrorWriter()
-    job_manager.batch_reader_writer.n_threads = n_threads
+    job_manager.batch_rw.reader_writer.writer = MockTransferErrorWriter()
+    job_manager.batch_rw.n_threads = n_threads
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
     job_manager.parse_and_commit_items(job)
     with pytest.raises(RemoteException):
@@ -58,8 +58,8 @@ def test_transfer_error(job_manager, n_threads):
     [1, 2],
 )
 def test_checksum_error(job_manager, n_threads):
-    job_manager.batch_reader_writer.reader_writer.writer = MockChecksumErrorWriter()
-    job_manager.batch_reader_writer.n_threads = n_threads
+    job_manager.batch_rw.reader_writer.writer = MockChecksumErrorWriter()
+    job_manager.batch_rw.n_threads = n_threads
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
     job_manager.parse_and_commit_items(job)
     with pytest.raises(RemoteException):

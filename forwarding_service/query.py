@@ -18,7 +18,7 @@ class QueryArgs(BaseModel):
 
 
 class JobQueryArgs(QueryArgs):
-    last_state: JobStatus | None = None
+    status: JobStatus | None = None
     error: JobError | None = None
     created_at: datetime | None = None
 

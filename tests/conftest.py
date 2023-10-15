@@ -14,7 +14,15 @@ from sqlmodel import Session, SQLModel, create_engine
 class MockReader(BaseReader):
     files = [f for f in ["file_{}.ext".format(i) for i in range(10)]]
     tree = {
-        "": {"root": {"path": {"project": {"": files}, "otherproject": {"": files}}}}
+        "": {
+            "root": {
+                "path": {
+                    "project": {"": files},
+                    "emptydir": {"": []},
+                    "otherproject": {"": files},
+                }
+            }
+        }
     }
 
     def read(self, *args, **kwargs):
@@ -94,7 +102,7 @@ def failed_job(session, completed_job):
     job = completed_job
     item.status = ItemStatus.PENDING
     job.error = JobError.TRANSFER_ERROR
-    job.last_state = JobStatus.PARSED
+    job.status = JobStatus.PARSED
     session.commit()
 
     yield job

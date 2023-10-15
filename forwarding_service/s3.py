@@ -46,7 +46,7 @@ class S3Writer(BaseWriter):
             )
         except BotoClientError as e:
             e = get_aws_error_info(e)
-            raise TransferException(message=e.message, operation=e.operation_name)
+            raise TransferException(error=e.message, operation=e.operation_name)
 
     def refresh_credentials(self):
         pass

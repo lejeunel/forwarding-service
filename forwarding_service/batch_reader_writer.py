@@ -1,39 +1,41 @@
 #!/usr/bin/env python3
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 
 from .enum_types import ItemStatus, JobError
 from .exceptions import CheckSumException, RemoteException, TransferException
-from .models import Job
+from .models import Job, Item
 from .reader_writer import BaseReaderWriter
+from dataclasses import dataclass
+
+@dataclass
+class TransferItemResult:
+    item: Item
+    success: bool = True
+    job_error: JobError = JobError.NONE
+    message: str = ''
+    operation: str = ''
 
 
 class BatchReaderWriter:
     def __init__(self,
                  reader_writer: BaseReaderWriter = BaseReaderWriter(),
+                 post_item_callbacks : list = [],
+                 post_batch_callbacks : list = [],
                  n_threads: int = 10):
         self.reader_writer = reader_writer
+        self.post_item_callbacks = post_item_callbacks
+        self.post_batch_callbacks = post_batch_callbacks
         self.n_threads = n_threads
 
-    def _post_transfer_update(self, job: Job, result: dict):
-        item = result["item"]
-
-        if result["success"]:
-            item.status = ItemStatus.TRANSFERRED
-            item.transferred_at = datetime.now()
-        else:
-            job.error = result['error']
-            job.info = result["message"]
-            raise RemoteException(
-                message=result["message"], operation=result["operation"]
-            )
-
     def run(self, job: Job):
-        if self.n_threads > 1:
-            self.n_threads = min(self.n_threads, len(job.items))
-            self._run_parallel(job)
+        n_threads = min(self.n_threads, len(job.items))
+        if n_threads > 1:
+            results = self._run_parallel(job)
         else:
-            self._run_sequential(job)
+            results = self._run_sequential(job)
+
+        for clbk in self.post_batch_callbacks:
+            clbk(results)
 
         return job
 
@@ -44,29 +46,39 @@ class BatchReaderWriter:
             results = [executor.submit(self._transfer_one_item, item) for item in items]
 
         results = [r._result for r in results]
-        for result in results:
-            self._post_transfer_update(job, result)
+
+        return results
 
     def _run_sequential(self, job: Job):
         items = [item for item in job.items if item.status != ItemStatus.TRANSFERRED]
+        results = []
         for item in items:
             result = self._transfer_one_item(item)
-            self._post_transfer_update(job, result)
+            results.append(result)
+            for clbk in self.post_item_callbacks:
+                clbk(result, self.n_threads)
+        return results
+
 
     def _transfer_one_item(self, item):
+        result = TransferItemResult(item=item)
+
+        job = item.job
         try:
             self.reader_writer.send(item.in_uri, item.out_uri)
         except RemoteException as e:
-            result =  {
-                "item": item,
-                "success": False,
-                "message": e.message,
-                "operation": e.operation
-            }
             if type(e) == CheckSumException:
-                result['error'] = JobError.CHECKSUM_ERROR
+                job.error = max(job.error, JobError.CHECKSUM_ERROR)
             elif type(e) == TransferException:
-                result['error'] = JobError.TRANSFER_ERROR
-            return result
+                job.error = max(job.error, JobError.TRANSFER_ERROR)
+            job.info['message'] = e.error
+            job.info['operation'] = e.operation
+            result =  TransferItemResult(
+                item= item,
+                success= False,
+            )
 
-        return {"item": item, "success": True, "message": "", "operation": "", 'error': JobError.NONE}
+        for clbk in self.post_item_callbacks:
+            clbk(result, self.n_threads)
+
+        return result

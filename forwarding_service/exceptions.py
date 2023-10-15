@@ -1,7 +1,7 @@
 class RemoteException(Exception):
-    def __init__(self, message, operation):
+    def __init__(self, error, operation):
 
-        self.message = message
+        self.error = error
         self.operation = operation
 
 class TransferException(RemoteException):
@@ -13,12 +13,18 @@ class AuthenticationError(RemoteException):
 class CheckSumException(RemoteException):
     pass
 
-class InitSrcException(Exception):
-    def __init__(self, message):
+class InitException(Exception):
+    def __init__(self, error):
 
-        self.message = message
+        self.error = error
+
+
+class InitSrcException(Exception):
+    def __init__(self, error):
+
+        self.error = error
 
 class InitDuplicateJobException(Exception):
-    def __init__(self, message):
+    def __init__(self, error):
 
-        self.message = message
+        self.error = error

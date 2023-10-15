@@ -47,4 +47,4 @@ class VaultCredentials(BaseAuthenticator):
 
             return self.client.read(self.token_path)
         except VaultError as e:
-            raise AuthenticationError(message=e.message, operation=e.method)
+            raise AuthenticationError(error=e.message, operation=e.method)
