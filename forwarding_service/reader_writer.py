@@ -29,7 +29,7 @@ class ReaderWriter(BaseReaderWriter):
         return checksum
 
     def send(self, in_uri: str, out_uri: str):
-        print(f"[{current_process().pid}] {in_uri} -> {out_uri}")
+        print(f"{in_uri} -> {out_uri}")
         bytes_, type_ = self.reader(in_uri)
 
         checksum = None
