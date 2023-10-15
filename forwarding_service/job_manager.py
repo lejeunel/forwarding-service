@@ -6,9 +6,14 @@ from pydantic import ValidationError
 from . import make_session
 from .batch_reader_writer import BatchReaderWriter, TransferItemResult
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import (AuthenticationError, CheckSumException,
-                         InitDuplicateJobException, InitException,
-                         InitSrcException, RemoteException)
+from .exceptions import (
+    AuthenticationError,
+    CheckSumException,
+    InitDuplicateJobException,
+    InitException,
+    InitSrcException,
+    RemoteException,
+)
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import JobQueryArgs, Query
@@ -79,7 +84,7 @@ class JobManager:
             self.session.commit()
             raise AuthenticationError(error=e.error, operation=e.operation)
 
-        self.batch_rw.run(job)
+        self.batch_rw.run(job.items)
 
         job.status = JobStatus.DONE
         self.session.commit()
@@ -89,13 +94,10 @@ class JobManager:
     def init(self, source: str, destination: str, regexp: str = ".*"):
         try:
             job = Job.validate(
-                {'source': source,
-                 'destination': destination,
-                 'regexp': regexp}
+                {"source": source, "destination": destination, "regexp": regexp}
             )
         except ValidationError as e:
             raise InitException(e.errors)
-
 
         if not self._source_exists(source):
             raise InitSrcException(f"Source directory {source} not found.")
@@ -127,7 +129,9 @@ class JobManager:
 
         if job.destination[-1] == "/":
             # concatenate in_uri name
-            out_uris = [job.destination + in_uri.split("/")[-1] for in_uri in in_uris]
+            out_uris = [
+                job.destination + in_uri.split("/")[-1] for in_uri in in_uris
+            ]
         else:
             out_uris = [job.destination]
 
@@ -162,10 +166,17 @@ class JobManager:
         return job
 
     @classmethod
-    def local_to_s3(cls, db_url: str = None, n_threads=30):
-        writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default"))
+    def local_to_s3(
+        cls, db_url: str = None, n_threads=30, split_ratio: float = 0.1
+    ):
+        writer = S3Writer(
+            profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default")
+        )
         brw = BatchReaderWriter(
-            reader=FileSystemReader(), writer=writer, n_threads=n_threads
+            reader=FileSystemReader(),
+            writer=writer,
+            n_threads=n_threads,
+            split_ratio=split_ratio,
         )
 
         session = make_session(db_url)

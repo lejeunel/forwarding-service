@@ -15,6 +15,7 @@ def run(
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
     n_threads: Annotated[int, typer.Option()] = 30,
+    split_ratio: Annotated[float, typer.Option(help='split items in small batches and sync database after each batch')] = 0.1,
 ):
     """Run job"""
     jm = JobManager.local_to_s3(n_threads=n_threads)

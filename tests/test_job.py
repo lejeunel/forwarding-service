@@ -24,11 +24,38 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     assert len(job.items) == job_manager.batch_rw.writer.count
 
 
+def test_batch_threaded(job_manager):
+    job_manager.batch_rw.n_threads = 2
+    job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
+    job_manager.parse_and_commit_items(job)
+    batch_iter = job_manager.batch_rw._split_to_batches(job.items)
+
+    job_manager.batch_rw._run_threaded(next(batch_iter))
+    n_done_first_batch = len(
+        [item for item in job.items if item.status == ItemStatus.TRANSFERRED]
+    )
+
+    job_manager.batch_rw._run_threaded(next(batch_iter))
+    n_done_second_batch = len([
+        item for item in job.items if item.status == ItemStatus.TRANSFERRED
+    ])
+    assert n_done_first_batch > 0
+    assert n_done_second_batch > n_done_first_batch
+
+
 @pytest.mark.parametrize(
     "n_threads,in_,out_",
     [
-        (1, "file:///root/path/project/file_1.ext", "s3://bucket/project/file_1.ext"),
-        (2, "file:///root/path/project/file_1.ext", "s3://bucket/project/file_1.ext"),
+        (
+            1,
+            "file:///root/path/project/file_1.ext",
+            "s3://bucket/project/file_1.ext",
+        ),
+        (
+            2,
+            "file:///root/path/project/file_1.ext",
+            "s3://bucket/project/file_1.ext",
+        ),
         (1, "file:///root/path/project/file_1.ext", "s3://bucket/project/"),
     ],
 )
@@ -68,9 +95,9 @@ def test_resume_completed_job(job_manager, completed_job):
 
 
 def test_job_exists(session, completed_job):
-
     query = Query(session, Job)
     assert query.exists(completed_job.id)
+
 
 def test_invalid_id_raises_exception(job_manager):
     with pytest.raises(Exception):
@@ -78,7 +105,6 @@ def test_invalid_id_raises_exception(job_manager):
 
 
 def test_get_items(session, completed_job):
-
     query = Query(session, Job)
 
     assert len(query.get(JobQueryArgs(id=completed_job.id))) > 0
