@@ -32,10 +32,13 @@ class Job(SQLModel, table=True):
     class Config:
         validate_assignment = True
 
+    def num_done_items(self):
+        return sum([item.status == ItemStatus.TRANSFERRED for item in self.items])
+
     def to_detailed_dict(self):
         result = dict(self)
         n_items = len(self.items)
-        done_items = sum([item.status == ItemStatus.TRANSFERRED for item in self.items])
+        done_items = self.num_done_items()
         result["total_num_items"] = n_items
         result["num_done_items"] = done_items
         if n_items > 0:

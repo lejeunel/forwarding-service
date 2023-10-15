@@ -6,7 +6,7 @@ from .enum_types import ItemStatus, JobError
 from .exceptions import CheckSumException, RemoteException, TransferException
 from .models import Item
 from .reader_writer import BaseReader, BaseWriter, ReaderWriter
-from .utils import chunks
+from .utils import chunks, get_todo_items
 
 
 @dataclass
@@ -53,10 +53,9 @@ class BatchReaderWriter(ReaderWriter):
         batches = chunks(items, n_batches)
         return batches
 
+
     def _run_threaded(self, items: list[Item]):
-        items = [
-            item for item in items if item.status != ItemStatus.TRANSFERRED
-        ]
+        items = get_todo_items(items)
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             results = [
                 executor.submit(self._transfer_one_item, item) for item in items
@@ -68,9 +67,7 @@ class BatchReaderWriter(ReaderWriter):
             clbk(results)
 
     def _run_sequential(self, items: list[Item]):
-        items = [
-            item for item in items if item.status != ItemStatus.TRANSFERRED
-        ]
+        items = get_todo_items(items)
         results = []
         for item in items:
             result = self._transfer_one_item(item)

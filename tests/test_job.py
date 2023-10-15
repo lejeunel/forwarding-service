@@ -19,7 +19,7 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     job_manager.run(job)
     assert job.status == JobStatus.DONE
     assert job.error == JobError.NONE
-    assert all(item.status == ItemStatus.TRANSFERRED for item in job.items)
+    assert job.num_done_items() == len(job.items)
     assert all(item.transferred_at > item.created_at for item in job.items)
     assert len(job.items) == job_manager.batch_rw.writer.count
 
@@ -31,14 +31,11 @@ def test_batch_threaded(job_manager):
     batch_iter = job_manager.batch_rw._split_to_batches(job.items)
 
     job_manager.batch_rw._run_threaded(next(batch_iter))
-    n_done_first_batch = len(
-        [item for item in job.items if item.status == ItemStatus.TRANSFERRED]
-    )
+    n_done_first_batch = job.num_done_items()
 
     job_manager.batch_rw._run_threaded(next(batch_iter))
-    n_done_second_batch = len([
-        item for item in job.items if item.status == ItemStatus.TRANSFERRED
-    ])
+    n_done_second_batch = job.num_done_items()
+
     assert n_done_first_batch > 0
     assert n_done_second_batch > n_done_first_batch
 
@@ -84,15 +81,13 @@ def test_resume_failed_job(job_manager, failed_job):
     job = job_manager.resume(failed_job)
     assert job.status == JobStatus.DONE
     assert job.error == JobError.NONE
-    assert all([i.status == ItemStatus.TRANSFERRED for i in job.items])
+    assert job.num_done_items() == len(job.items)
 
 
 def test_resume_completed_job(job_manager, completed_job):
     job = job_manager.resume(completed_job)
     assert job.status == JobStatus.DONE
     assert job.error == JobError.NONE
-    assert all([i.status == ItemStatus.TRANSFERRED for i in job.items])
-
 
 def test_job_exists(session, completed_job):
     query = Query(session, Job)

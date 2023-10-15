@@ -11,6 +11,8 @@ We support local file-system as source, and S3 bucket as destination, but this c
 
 Under the hood, this app leverages an SQLite database that stores transactions. In particular, each upload job will comprise one or more data items (or files).
 
+Last, we support threaded jobs, to improve upload performance.
+
 ** Installation
 
 This app is packaged using [[https://python-poetry.org/docs/#installation][Poetry]], which you must install first before running the following command from the project's root:
@@ -32,8 +34,16 @@ The default value is ~$HOME/.cache/forwarding_service.db~.
 
 ** Usage
 
+*** Command Line Interface
 We provide a simple CLI that should be self-explanatory:
 
 #+begin_src sh
 python main.py --help
 #+end_src
+
+*** Multi-threading parameters
+There are two parameters that concern threaded uploads:
+ 1. ~--n-threads~ defines the number of threads.
+ 2. ~--split-ratio~ defines how the full set of items we wish to send will be split. The rationale of this parameter lies in the fact that multiple threads cannot write to the database in a concurrent manner.
+    We therefore split the whole set into smaller batches, send each batch one by one using multi-threading, and finally update the database.
+    This allows to resume the job starting from the last completed batch.

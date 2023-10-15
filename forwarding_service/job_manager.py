@@ -38,7 +38,7 @@ def post_item_callback(session, result: TransferItemResult, n_threads: int):
 def post_batch_callback(session, results: list[TransferItemResult]):
     if results:
         job = results[0].item.job
-        if all([r.item.status == ItemStatus.TRANSFERRED for r in results]):
+        if job.num_done_items() == len(job.items):
             job.status = JobStatus.DONE
 
         session.commit()
