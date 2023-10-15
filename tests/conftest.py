@@ -53,7 +53,10 @@ class MockReader(BaseReader):
 
 
 class MockWriter(BaseWriter):
+    def __init__(self):
+        self.count = 0
     def __call__(self, *args, **kwargs):
+        self.count += 1
         pass
 
     def refresh_credentials(self):
@@ -77,8 +80,7 @@ def session(engine):
 
 @pytest.fixture
 def job_manager(session):
-    rw = ReaderWriter(reader=MockReader(), writer=MockWriter())
-    brw = BatchReaderWriter(rw)
+    brw = BatchReaderWriter(reader=MockReader(), writer=MockWriter())
     job_manager = JobManager(session=session, batch_reader_writer=brw)
 
     yield job_manager

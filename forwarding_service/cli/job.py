@@ -14,7 +14,7 @@ def run(
     source: Annotated[str, typer.Argument()],
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
-    n_threads: Annotated[int, typer.Option()] = 10,
+    n_threads: Annotated[int, typer.Option()] = 30,
 ):
     """Run job"""
     jm = JobManager.local_to_s3(n_threads=n_threads)
@@ -29,7 +29,7 @@ def run(
 @app.command()
 def resume(
     id: Annotated[str, typer.Argument()],
-    n_threads: Annotated[int, typer.Option()] = 10,
+    n_threads: Annotated[int, typer.Option()] = 30,
 ):
     """Resume job"""
     jm = JobManager.local_to_s3(n_threads=n_threads)

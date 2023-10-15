@@ -1,17 +1,10 @@
-#!/usr/bin/env python3
 import hashlib
 from base64 import b64encode
-from multiprocessing import current_process
 
 from .base import BaseReader, BaseWriter
 
 
-class BaseReaderWriter:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-class ReaderWriter(BaseReaderWriter):
+class ReaderWriter:
     def __init__(
         self,
         reader: BaseReader,

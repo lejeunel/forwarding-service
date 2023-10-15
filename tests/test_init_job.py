@@ -30,6 +30,7 @@ def test_empty_source(job_manager):
     [
         ("http://root/path/project/", "s3://bucket/project/"),
         ("/root/path/project/", "s3://bucket/project/"),
+        ("file:///root/path/project/", "bucket/project/"),
     ],
 )
 def test_invalid_specs_must_fail(job_manager, in_, out_):

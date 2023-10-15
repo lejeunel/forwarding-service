@@ -21,6 +21,7 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     assert job.error == JobError.NONE
     assert all(item.status == ItemStatus.TRANSFERRED for item in job.items)
     assert all(item.transferred_at > item.created_at for item in job.items)
+    assert len(job.items) == job_manager.batch_rw.writer.count
 
 
 @pytest.mark.parametrize(
@@ -37,7 +38,7 @@ def test_single_file_job(job_manager, n_threads, in_, out_):
     job = job_manager.init(in_, out_)
     job = job_manager.parse_and_commit_items(job)
     job_manager.run(job)
-    assert len(job.items) == 1
+    assert len(job.items) == job_manager.batch_rw.writer.count
     item = job.items[0]
 
     assert job.status == JobStatus.DONE

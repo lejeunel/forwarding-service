@@ -13,19 +13,6 @@ class S3Writer(BaseWriter):
         self.session = boto3.Session(profile_name=profile_name)
         self.client = self.session.client('s3')
 
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            if k != "client":
-                setattr(result, k, copy.deepcopy(v, memo))
-        setattr(result, "client", boto3.client("s3", **self.authenticator()))
-        return result
-
-    def __reduce__(self):
-        return (self.__class__, (self.authenticator,))
-
     def __call__(
         self,
         bytes_,
@@ -40,7 +27,7 @@ class S3Writer(BaseWriter):
                 Body=bytes_,
                 Bucket=uri.netloc,
                 Key=uri.path,
-                ContentType=mime_type,
+                ContentType=mime_type if mime_type else '',
                 ChecksumAlgorithm="SHA256",
                 ChecksumSHA256=checksum,
             )

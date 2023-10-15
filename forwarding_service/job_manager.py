@@ -1,25 +1,19 @@
 from datetime import datetime
 
 from decouple import config
+from pydantic import ValidationError
 
 from . import make_session
 from .batch_reader_writer import BatchReaderWriter, TransferItemResult
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import (
-    AuthenticationError,
-    CheckSumException,
-    InitDuplicateJobException,
-    InitSrcException,
-    InitException,
-    RemoteException,
-)
+from .exceptions import (AuthenticationError, CheckSumException,
+                         InitDuplicateJobException, InitException,
+                         InitSrcException, RemoteException)
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import JobQueryArgs, Query
-from .reader_writer import ReaderWriter
 from .s3 import S3Writer
 from .utils import _match_file_extension
-from pydantic import ValidationError
 
 
 def post_item_callback(session, result: TransferItemResult, n_threads: int):
@@ -59,7 +53,7 @@ class JobManager:
     def __init__(
         self,
         session,
-        batch_reader_writer: BatchReaderWriter = BatchReaderWriter(),
+        batch_reader_writer: BatchReaderWriter,
     ):
         self.session = session
 
@@ -78,7 +72,7 @@ class JobManager:
             return job
 
         try:
-            self.batch_rw.reader_writer.refresh_credentials()
+            self.batch_rw.refresh_credentials()
         except AuthenticationError as e:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.error, "operation": e.operation}
@@ -168,10 +162,10 @@ class JobManager:
         return job
 
     @classmethod
-    def local_to_s3(cls, db_url: str = None, n_threads=10):
+    def local_to_s3(cls, db_url: str = None, n_threads=30):
         writer = S3Writer(profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default"))
         brw = BatchReaderWriter(
-            ReaderWriter(reader=FileSystemReader(), writer=writer), n_threads=n_threads
+            reader=FileSystemReader(), writer=writer, n_threads=n_threads
         )
 
         session = make_session(db_url)
@@ -180,7 +174,7 @@ class JobManager:
         return job_manager
 
     def _source_exists(self, uri: str):
-        return self.batch_rw.reader_writer.reader.exists(uri)
+        return self.batch_rw.reader.exists(uri)
 
     def _parse_source(
         self,
@@ -189,7 +183,7 @@ class JobManager:
         pattern_filter: str = "*.*",
         is_regex: bool = False,
     ):
-        list_ = self.batch_rw.reader_writer.reader.list(uri, files_only=files_only)
+        list_ = self.batch_rw.reader.list(uri, files_only=files_only)
 
         list_ = [
             item

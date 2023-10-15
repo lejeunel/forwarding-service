@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .enum_types import ItemStatus, JobError
 from .exceptions import CheckSumException, RemoteException, TransferException
 from .models import Job, Item
-from .reader_writer import BaseReaderWriter
+from .reader_writer import BaseReader, BaseWriter, ReaderWriter
 from dataclasses import dataclass
 
 @dataclass
@@ -16,13 +16,14 @@ class TransferItemResult:
     operation: str = ''
 
 
-class BatchReaderWriter:
+class BatchReaderWriter(ReaderWriter):
     def __init__(self,
-                 reader_writer: BaseReaderWriter = BaseReaderWriter(),
+                 reader: BaseReader,
+                 writer: BaseWriter,
                  post_item_callbacks : list = [],
                  post_batch_callbacks : list = [],
-                 n_threads: int = 10):
-        self.reader_writer = reader_writer
+                 n_threads: int = 30):
+        super().__init__(reader = reader, writer=writer, do_checksum=True)
         self.post_item_callbacks = post_item_callbacks
         self.post_batch_callbacks = post_batch_callbacks
         self.n_threads = n_threads
@@ -65,7 +66,7 @@ class BatchReaderWriter:
 
         job = item.job
         try:
-            self.reader_writer.send(item.in_uri, item.out_uri)
+            self.send(item.in_uri, item.out_uri)
         except RemoteException as e:
             if type(e) == CheckSumException:
                 job.error = max(job.error, JobError.CHECKSUM_ERROR)
