@@ -37,12 +37,6 @@ class BatchReaderWriter(ReaderWriter):
         else:
             self._run_sequential(items)
 
-    def register_post_item_command(self, command: Command):
-        self.post_item_commands.append(command)
-
-    def register_post_batch_command(self, command: Command):
-        self.post_batch_commands.append(command)
-
     def _split_to_batches(self, items: list[Item]):
         batch_size = round(self.split_ratio * len(items))
         n_batches = round(len(items) / batch_size)

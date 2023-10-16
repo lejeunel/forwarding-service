@@ -33,23 +33,23 @@ class JobManager:
         self.session = session
         self.batch_rw = batch_reader_writer
 
-        self.batch_rw.register_post_batch_command(UpdateJobDoneCommand())
-        self.batch_rw.register_post_batch_command(
-            CommitChangesCommand(self.session)
-        )
-        self.batch_rw.register_post_batch_command(RaiseJobExceptionCommand())
+        self._register_commands()
 
-        self.batch_rw.register_post_item_command(UpdateItemStatusCommand())
-        self.batch_rw.register_post_item_command(HandleExceptionCommand())
+    def _register_commands(self):
+        threaded = self.batch_rw.n_threads > 1
 
-        # Multi-threading imposes some limitations:
-        # - Concurrent threads (usually) cannot write to the same database
-        # - Exceptions are silently ignored when raised inside a thread
-        if self.batch_rw.n_threads == 1:
-            self.batch_rw.register_post_item_command(
-                CommitChangesCommand(self.session)
-            )
-            self.batch_rw.register_post_item_command(RaiseJobExceptionCommand())
+        self.batch_rw.post_batch_commands = [
+            UpdateJobDoneCommand(),
+            CommitChangesCommand(self.session),
+            RaiseJobExceptionCommand(),
+        ]
+
+        self.batch_rw.post_item_commands = [
+            UpdateItemStatusCommand(),
+            HandleExceptionCommand(),
+            CommitChangesCommand(self.session, threaded),
+            RaiseJobExceptionCommand(threaded),
+        ]
 
     def run(self, job: Job):
         if job.status == JobStatus.DONE:
