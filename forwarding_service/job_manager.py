@@ -5,6 +5,7 @@ from . import make_session
 from .batch_reader_writer import BatchReaderWriter
 from .commands import (
     RaiseJobExceptionCommand,
+    HandleExceptionCommand,
     UpdateItemStatusCommand,
     UpdateJobDoneCommand,
     CommitChangesCommand,
@@ -33,16 +34,21 @@ class JobManager:
         self.batch_rw = batch_reader_writer
 
         self.batch_rw.register_post_batch_command(UpdateJobDoneCommand())
-        self.batch_rw.register_post_batch_command(CommitChangesCommand(self.session))
+        self.batch_rw.register_post_batch_command(
+            CommitChangesCommand(self.session)
+        )
         self.batch_rw.register_post_batch_command(RaiseJobExceptionCommand())
 
         self.batch_rw.register_post_item_command(UpdateItemStatusCommand())
+        self.batch_rw.register_post_item_command(HandleExceptionCommand())
 
         # Multi-threading imposes some limitations:
         # - Concurrent threads (usually) cannot write to the same database
         # - Exceptions are silently ignored when raised inside a thread
         if self.batch_rw.n_threads == 1:
-            self.batch_rw.register_post_item_command(CommitChangesCommand(self.session))
+            self.batch_rw.register_post_item_command(
+                CommitChangesCommand(self.session)
+            )
             self.batch_rw.register_post_item_command(RaiseJobExceptionCommand())
 
     def run(self, job: Job):
@@ -57,7 +63,11 @@ class JobManager:
             self.session.commit()
             raise AuthenticationError(error=e.error, operation=e.operation)
 
-        self.batch_rw.run(job.items)
+        items = [
+            item for item in job.items if item.status != ItemStatus.TRANSFERRED
+        ]
+
+        self.batch_rw.run(items)
 
         job.status = JobStatus.DONE
         self.session.commit()

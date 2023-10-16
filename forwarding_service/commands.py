@@ -4,7 +4,7 @@ from datetime import datetime
 
 from .models import TransferItemResult
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import CheckSumException, RemoteException
+from .exceptions import CheckSumException, RemoteException, TransferException
 from .models import Job
 
 
@@ -19,6 +19,19 @@ class UpdateItemStatusCommand(Command):
         if result.success:
             item.status = ItemStatus.TRANSFERRED
             item.transferred_at = datetime.now()
+
+class HandleExceptionCommand(Command):
+    def execute(self, result: TransferItemResult):
+        if result.exception:
+            job = result.item.job
+            exception = result.exception
+
+            if type(exception) == CheckSumException:
+                job.error = max(job.error, JobError.CHECKSUM_ERROR)
+            elif type(exception) == TransferException:
+                job.error = max(job.error, JobError.TRANSFER_ERROR)
+            job.info["message"] = exception.error
+            job.info["operation"] = exception.operation
 
 class CommitChangesCommand(Command):
     def __init__(self, session):

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 from concurrent.futures import ThreadPoolExecutor
 
-from .enum_types import JobError, ItemStatus
+from .commands import Command
+from .enum_types import JobError
 from .exceptions import CheckSumException, RemoteException, TransferException
 from .models import Item, TransferItemResult
 from .reader_writer import BaseReader, BaseWriter, ReaderWriter
 from .utils import chunks
-from .commands import Command
-
 
 
 class BatchReaderWriter(ReaderWriter):
@@ -31,10 +30,6 @@ class BatchReaderWriter(ReaderWriter):
         self.split_ratio = split_ratio
 
     def run(self, items: list[Item]):
-        items = [
-            item for item in items if item.status != ItemStatus.TRANSFERRED
-        ]
-
         n_threads = min(self.n_threads, len(items))
         if n_threads > 1:
             for b in self._split_to_batches(items):
@@ -55,7 +50,6 @@ class BatchReaderWriter(ReaderWriter):
         batches = chunks(items, n_batches)
         return batches
 
-
     def _run_threaded(self, items: list[Item]):
         job = items[0].job
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
@@ -69,32 +63,23 @@ class BatchReaderWriter(ReaderWriter):
             cmd.execute(job)
 
     def _run_sequential(self, items: list[Item]):
-        job = items[0].job
         results = []
         for item in items:
             result = self._transfer_one_item(item)
             results.append(result)
 
+        job = items[0].job
         for cmd in self.post_batch_commands:
             cmd.execute(job)
 
     def _transfer_one_item(self, item: Item):
         result = TransferItemResult(item=item, success=True)
 
-        job = item.job
         try:
             self.send(item.in_uri, item.out_uri)
         except RemoteException as e:
-            if type(e) == CheckSumException:
-                job.error = max(job.error, JobError.CHECKSUM_ERROR)
-            elif type(e) == TransferException:
-                job.error = max(job.error, JobError.TRANSFER_ERROR)
-            job.info["message"] = e.error
-            job.info["operation"] = e.operation
-            result = TransferItemResult(
-                item=item,
-                success=False,
-            )
+            result.exception = e
+            result.success = False
 
         for cmd in self.post_item_commands:
             cmd.execute(result)

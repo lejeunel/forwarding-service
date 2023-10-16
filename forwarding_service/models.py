@@ -71,6 +71,4 @@ class Item(SQLModel, table=True):
 class TransferItemResult:
     item: Item
     success: bool = True
-    job_error: JobError = JobError.NONE
-    message: str = ""
-    operation: str = ""
+    exception = None
