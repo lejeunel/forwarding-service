@@ -2,11 +2,11 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from .enum_types import ItemStatus, JobError
+from .enum_types import JobError, ItemStatus
 from .exceptions import CheckSumException, RemoteException, TransferException
 from .models import Item
 from .reader_writer import BaseReader, BaseWriter, ReaderWriter
-from .utils import chunks, get_todo_items
+from .utils import chunks
 
 
 @dataclass
@@ -23,14 +23,14 @@ class BatchReaderWriter(ReaderWriter):
         self,
         reader: BaseReader,
         writer: BaseWriter,
-        post_item_callbacks: list = [],
-        post_batch_callbacks: list = [],
+        post_item_commands: list = [],
+        post_batch_commands: list = [],
         n_threads: int = 30,
         split_ratio: float = 0.1,
     ):
         super().__init__(reader=reader, writer=writer, do_checksum=True)
-        self.post_item_callbacks = post_item_callbacks
-        self.post_batch_callbacks = post_batch_callbacks
+        self.post_item_commands = post_item_commands
+        self.post_batch_commands = post_batch_commands
         self.n_threads = n_threads
 
         assert (
@@ -39,6 +39,10 @@ class BatchReaderWriter(ReaderWriter):
         self.split_ratio = split_ratio
 
     def run(self, items: list[Item]):
+        items = [
+            item for item in items if item.status != ItemStatus.TRANSFERRED
+        ]
+
         n_threads = min(self.n_threads, len(items))
         if n_threads > 1:
             for b in self._split_to_batches(items):
@@ -55,7 +59,7 @@ class BatchReaderWriter(ReaderWriter):
 
 
     def _run_threaded(self, items: list[Item]):
-        items = get_todo_items(items)
+        job = items[0].job
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             results = [
                 executor.submit(self._transfer_one_item, item) for item in items
@@ -63,23 +67,21 @@ class BatchReaderWriter(ReaderWriter):
 
         results = [r._result for r in results]
 
-        for clbk in self.post_batch_callbacks:
-            clbk(results)
+        for cmd in self.post_batch_commands:
+            cmd.execute(job)
 
     def _run_sequential(self, items: list[Item]):
-        items = get_todo_items(items)
+        job = items[0].job
         results = []
         for item in items:
             result = self._transfer_one_item(item)
             results.append(result)
-            for clbk in self.post_item_callbacks:
-                clbk(result, self.n_threads)
 
-        for clbk in self.post_batch_callbacks:
-            clbk(results)
+        for cmd in self.post_batch_commands:
+            cmd.execute(job)
 
     def _transfer_one_item(self, item: Item):
-        result = TransferItemResult(item=item)
+        result = TransferItemResult(item=item, success=True)
 
         job = item.job
         try:
@@ -96,7 +98,7 @@ class BatchReaderWriter(ReaderWriter):
                 success=False,
             )
 
-        for clbk in self.post_item_callbacks:
-            clbk(result, self.n_threads)
+        for cmd in self.post_item_commands:
+            cmd.execute(result)
 
         return result

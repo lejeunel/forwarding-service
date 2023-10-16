@@ -1,11 +1,11 @@
-from botocore.client import ClientError as BotoClientError
-import boto3
-from .base import BaseWriter
-import copy
 from urllib.parse import urlparse
-from .auth import BaseAuthenticator
-from .exceptions import TransferException
+
+import boto3
 from aws_error_utils import get_aws_error_info
+from botocore.client import ClientError as BotoClientError
+
+from .base import BaseWriter
+from .exceptions import TransferException
 
 
 class S3Writer(BaseWriter):

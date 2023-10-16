@@ -24,12 +24,6 @@ def filter_table(session, model: SQLModel, **kwargs):
 
     return query
 
-def get_todo_items(items: list[Item]):
-    todo_items = [
-        item for item in items if item.status != ItemStatus.TRANSFERRED
-    ]
-    return todo_items
-
 def chunks(l, n):
     """Yield n number of striped chunks from l."""
     for i in range(0, n):

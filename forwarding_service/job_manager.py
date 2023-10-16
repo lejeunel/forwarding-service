@@ -1,57 +1,26 @@
-from datetime import datetime
-
 from decouple import config
 from pydantic import ValidationError
 
 from . import make_session
-from .batch_reader_writer import BatchReaderWriter, TransferItemResult
+from .batch_reader_writer import BatchReaderWriter
+from .commands import (
+    RaiseJobExceptionCommand,
+    UpdateItemStatusCommand,
+    UpdateJobDoneCommand,
+    CommitChangesCommand,
+)
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import (
     AuthenticationError,
-    CheckSumException,
     InitDuplicateJobException,
     InitException,
     InitSrcException,
-    RemoteException,
 )
 from .file import FileSystemReader
 from .models import Item, Job
 from .query import JobQueryArgs, Query
 from .s3 import S3Writer
 from .utils import _match_file_extension
-
-
-def post_item_callback(session, result: TransferItemResult, n_threads: int):
-    item = result.item
-    if result.success:
-        item.status = ItemStatus.TRANSFERRED
-        item.transferred_at = datetime.now()
-
-    # when multi-threading, we do not commit changes because most SQL implementation
-    # do not allow concurrent writes
-    if n_threads == 1:
-        session.commit()
-
-    return result
-
-
-def post_batch_callback(session, results: list[TransferItemResult]):
-    if results:
-        job = results[0].item.job
-        if job.num_done_items() == len(job.items):
-            job.status = JobStatus.DONE
-
-        session.commit()
-
-        if job.error == JobError.TRANSFER_ERROR:
-            raise RemoteException(
-                error=job.info["message"], operation=job.info["operation"]
-            )
-
-        elif job.error == JobError.CHECKSUM_ERROR:
-            raise CheckSumException(
-                error=results[0].message, operation=results[0].operation
-            )
 
 
 class JobManager:
@@ -61,16 +30,20 @@ class JobManager:
         batch_reader_writer: BatchReaderWriter,
     ):
         self.session = session
-
         self.batch_rw = batch_reader_writer
-        self.batch_rw.post_item_callbacks = [
-            lambda result, n_threads: post_item_callback(
-                self.session, result, n_threads
-            )
+
+        self.batch_rw.post_batch_commands = [
+            UpdateJobDoneCommand(),
+            CommitChangesCommand(self.session),
+            RaiseJobExceptionCommand(),
         ]
-        self.batch_rw.post_batch_callbacks = [
-            lambda result: post_batch_callback(self.session, result)
+        self.batch_rw.post_item_commands = [
+            UpdateItemStatusCommand()
         ]
+
+        # Most SQL engines do not support writing concurrently
+        if self.batch_rw.n_threads == 1:
+            self.batch_rw.post_item_commands.append(CommitChangesCommand(self.session))
 
     def run(self, job: Job):
         if job.status == JobStatus.DONE:
