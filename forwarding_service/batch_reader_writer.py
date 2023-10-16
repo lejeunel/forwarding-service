@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 
 from .enum_types import JobError, ItemStatus
 from .exceptions import CheckSumException, RemoteException, TransferException
-from .models import Item
+from .models import Item, TransferItemResult
 from .reader_writer import BaseReader, BaseWriter, ReaderWriter
 from .utils import chunks
+from .commands import Command
 
-
-@dataclass
-class TransferItemResult:
-    item: Item
-    success: bool = True
-    job_error: JobError = JobError.NONE
-    message: str = ""
-    operation: str = ""
 
 
 class BatchReaderWriter(ReaderWriter):
@@ -23,8 +15,8 @@ class BatchReaderWriter(ReaderWriter):
         self,
         reader: BaseReader,
         writer: BaseWriter,
-        post_item_commands: list = [],
-        post_batch_commands: list = [],
+        post_item_commands: list[Command] = [],
+        post_batch_commands: list[Command] = [],
         n_threads: int = 30,
         split_ratio: float = 0.1,
     ):

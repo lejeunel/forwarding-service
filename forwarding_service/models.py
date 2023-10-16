@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic.networks import AnyUrl, FileUrl
 from sqlalchemy import JSON
 from sqlmodel import Column, Enum, Field, Relationship, SQLModel
+from dataclasses import dataclass
 
 from .enum_types import ItemStatus, JobError, JobStatus
 
@@ -65,3 +66,11 @@ class Item(SQLModel, table=True):
     job: Optional[Job] = Relationship(back_populates="items")
     class Config:
         validate_assignment = True
+
+@dataclass
+class TransferItemResult:
+    item: Item
+    success: bool = True
+    job_error: JobError = JobError.NONE
+    message: str = ""
+    operation: str = ""

@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from .batch_reader_writer import TransferItemResult
+from .models import TransferItemResult
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import CheckSumException, RemoteException
 from .models import Job

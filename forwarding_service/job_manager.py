@@ -32,12 +32,12 @@ class JobManager:
         self.session = session
         self.batch_rw = batch_reader_writer
 
-        self.batch_rw.post_batch_commands = [
+        self.batch_rw.post_batch_commands += [
             UpdateJobDoneCommand(),
             CommitChangesCommand(self.session),
             RaiseJobExceptionCommand(),
         ]
-        self.batch_rw.post_item_commands = [
+        self.batch_rw.post_item_commands += [
             UpdateItemStatusCommand()
         ]
 
