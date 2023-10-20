@@ -36,7 +36,7 @@ class HandleExceptionCommand(Command):
             job.info["operation"] = exception.operation
 
 
-class CommitChangesCommand(Command):
+class CommitCommand(Command):
     def __init__(self, session, threaded=False):
         self.session = session
         self.threaded = threaded
@@ -47,25 +47,25 @@ class CommitChangesCommand(Command):
 
 
 class UpdateJobDoneCommand(Command):
-    def execute(self, job: Job):
-        if job.num_done_items() == len(job.items):
-            job.status = JobStatus.DONE
+    def __init__(self, job: Job):
+        self.job = job
+
+    def execute(self, *args, **kwargs):
+        if self.job.num_done_items() == len(self.job.items):
+            self.job.status = JobStatus.DONE
 
 
-class RaiseJobExceptionCommand(Command):
+class RaiseFirstExceptionCommand(Command):
     def __init__(self, threaded=False):
         self.threaded = threaded
 
-    def execute(self, job: Job):
+    def execute(self, results: list[TransferItemResult] | TransferItemResult):
         if self.threaded:
             return
 
-        if job.error == JobError.TRANSFER_ERROR:
-            raise RemoteException(
-                error=job.info["message"], operation=job.info["operation"]
-            )
+        if isinstance(results, TransferItemResult):
+            results = [results]
 
-        elif job.error == JobError.CHECKSUM_ERROR:
-            raise CheckSumException(
-                error=job.info["message"], operation=job.info["operation"]
-            )
+        exceptions = [r.exception for r in results if r.exception]
+        if exceptions:
+            raise exceptions[0]

@@ -4,11 +4,11 @@ from pydantic import ValidationError
 from . import make_session
 from .batch_reader_writer import BatchReaderWriter
 from .commands import (
-    RaiseJobExceptionCommand,
+    RaiseFirstExceptionCommand,
     HandleExceptionCommand,
     UpdateItemStatusCommand,
     UpdateJobDoneCommand,
-    CommitChangesCommand,
+    CommitCommand,
 )
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import (
@@ -33,40 +33,17 @@ class JobManager:
         self.session = session
         self.batch_rw = batch_reader_writer
 
-        self._register_commands()
-
-    def _register_commands(self):
-        threaded = self.batch_rw.n_threads > 1
-
-        self.batch_rw.post_batch_commands = [
-            UpdateJobDoneCommand(),
-            CommitChangesCommand(self.session),
-            RaiseJobExceptionCommand(),
-        ]
-
-        self.batch_rw.post_item_commands = [
-            UpdateItemStatusCommand(),
-            HandleExceptionCommand(),
-            CommitChangesCommand(self.session, threaded),
-            RaiseJobExceptionCommand(threaded),
-        ]
-
     def run(self, job: Job):
         if job.status == JobStatus.DONE:
             return job
 
-        try:
-            self.batch_rw.refresh_credentials()
-        except AuthenticationError as e:
-            job.error = JobError.AUTH_ERROR
-            job.info = {"message": e.error, "operation": e.operation}
-            self.session.commit()
-            raise AuthenticationError(error=e.error, operation=e.operation)
+        self._refresh_credentials(job)
 
         items = [
             item for item in job.items if item.status != ItemStatus.TRANSFERRED
         ]
 
+        self._setup_commands(job)
         self.batch_rw.run(items)
 
         job.status = JobStatus.DONE
@@ -101,6 +78,8 @@ class JobManager:
     def parse_and_commit_items(self, job: Job):
         if job.status > JobStatus.PARSED:
             return job
+
+        self._refresh_credentials(job)
 
         # parse source
         in_uris = self._parse_source(
@@ -185,3 +164,28 @@ class JobManager:
             if _match_file_extension(item, pattern_filter, is_regex)
         ]
         return list_
+
+    def _setup_commands(self, job):
+        threaded = self.batch_rw.n_threads > 1
+
+        self.batch_rw.post_batch_commands = [
+            UpdateJobDoneCommand(job),
+            CommitCommand(self.session),
+            RaiseFirstExceptionCommand(),
+        ]
+
+        self.batch_rw.post_item_commands = [
+            UpdateItemStatusCommand(),
+            HandleExceptionCommand(),
+            CommitCommand(self.session, threaded),
+            RaiseFirstExceptionCommand(threaded),
+        ]
+
+    def _refresh_credentials(self, job):
+        try:
+            self.batch_rw.refresh_credentials()
+        except AuthenticationError as e:
+            job.error = JobError.AUTH_ERROR
+            job.info = {"message": e.error, "operation": e.operation}
+            self.session.commit()
+            raise AuthenticationError(error=e.error, operation=e.operation)

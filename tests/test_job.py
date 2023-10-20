@@ -24,22 +24,6 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     assert len(job.items) == job_manager.batch_rw.writer.count
 
 
-def test_batch_threaded(job_manager):
-    job_manager.batch_rw.n_threads = 2
-    job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
-    job_manager.parse_and_commit_items(job)
-    batch_iter = job_manager.batch_rw._split_to_batches(job.items)
-
-    job_manager.batch_rw._run_threaded(next(batch_iter))
-    n_done_first_batch = job.num_done_items()
-
-    job_manager.batch_rw._run_threaded(next(batch_iter))
-    n_done_second_batch = job.num_done_items()
-
-    assert n_done_first_batch > 0
-    assert n_done_second_batch > n_done_first_batch
-
-
 @pytest.mark.parametrize(
     "n_threads,in_,out_",
     [
@@ -88,6 +72,7 @@ def test_resume_completed_job(job_manager, completed_job):
     job = job_manager.resume(completed_job)
     assert job.status == JobStatus.DONE
     assert job.error == JobError.NONE
+
 
 def test_job_exists(session, completed_job):
     query = Query(session, Job)

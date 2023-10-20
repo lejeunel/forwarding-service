@@ -54,7 +54,7 @@ class BatchReaderWriter(ReaderWriter):
         results = [r._result for r in results]
 
         for cmd in self.post_batch_commands:
-            cmd.execute(job)
+            cmd.execute(results)
 
     def _run_sequential(self, items: list[Item]):
         results = []
@@ -64,7 +64,7 @@ class BatchReaderWriter(ReaderWriter):
 
         job = items[0].job
         for cmd in self.post_batch_commands:
-            cmd.execute(job)
+            cmd.execute(results)
 
     def _transfer_one_item(self, item: Item):
         result = TransferItemResult(item=item, success=True)
