@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
 from concurrent.futures import ThreadPoolExecutor
 
 from .commands import Command
-from .enum_types import JobError
-from .exceptions import CheckSumException, RemoteException, TransferException
+from .exceptions import RemoteException
 from .models import Item, TransferItemResult
 from .reader_writer import BaseReader, BaseWriter, ReaderWriter
 from .utils import chunks
@@ -62,7 +60,6 @@ class BatchReaderWriter(ReaderWriter):
             result = self._transfer_one_item(item)
             results.append(result)
 
-        job = items[0].job
         for cmd in self.post_batch_commands:
             cmd.execute(results)
 
