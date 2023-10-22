@@ -168,6 +168,12 @@ class JobManager:
         return list_
 
     def _setup_commands(self):
+        """Assign commands to underlying transfer agent.
+
+        Depending on regime (sequential, threaded),
+        some commands will be skipped as threads cannot handle
+        committing to database and raising exceptions
+        """
         threaded = self.transfer_agent.n_threads > 1
 
         self.transfer_agent.post_batch_commands = [

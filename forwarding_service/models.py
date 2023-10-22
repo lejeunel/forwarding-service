@@ -76,10 +76,8 @@ class Item(SQLModel, table=True):
 
 @dataclass
 class Transaction:
-    item_id: str = None
+    item_id: str | None = None
     input: str | None = None
     output: str | None = None
-    error = None
-    status = None
     success: bool = False
     exception = None
