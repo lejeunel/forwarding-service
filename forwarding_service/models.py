@@ -18,7 +18,9 @@ class Job(SQLModel, table=True):
     status: JobStatus = Field(
         sa_column=Column(Enum(JobStatus)), default=JobStatus.INIT
     )
-    error: JobError = Field(sa_column=Column(Enum(JobError)), default=JobError.NONE)
+    error: JobError = Field(
+        sa_column=Column(Enum(JobError)), default=JobError.NONE
+    )
 
     info: Dict[Any, Any] | None = Field(
         sa_column=Column(JSON), default={"message": "", "operation": ""}
@@ -30,11 +32,14 @@ class Job(SQLModel, table=True):
     items: List["Item"] = Relationship(
         sa_relationship_kwargs={"cascade": "delete"}, back_populates="job"
     )
+
     class Config:
         validate_assignment = True
 
     def num_done_items(self):
-        return sum([item.status == ItemStatus.TRANSFERRED for item in self.items])
+        return sum(
+            [item.status == ItemStatus.TRANSFERRED for item in self.items]
+        )
 
     def to_detailed_dict(self):
         result = dict(self)
@@ -64,11 +69,17 @@ class Item(SQLModel, table=True):
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     transferred_at: Optional[datetime] = Field(default_factory=datetime.now)
     job: Optional[Job] = Relationship(back_populates="items")
+
     class Config:
         validate_assignment = True
 
+
 @dataclass
-class TransferItemResult:
-    item: Item
-    success: bool = True
+class Transaction:
+    item_id: str = None
+    input: str | None = None
+    output: str | None = None
+    error = None
+    status = None
+    success: bool = False
     exception = None

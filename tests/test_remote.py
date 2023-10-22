@@ -28,7 +28,7 @@ class MockChecksumErrorWriter(BaseWriter):
 
 
 def test_auth_fail(job_manager):
-    job_manager.batch_rw.writer = MockBadAuthWriter()
+    job_manager.transfer_agent.writer = MockBadAuthWriter()
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
 
     with pytest.raises(AuthenticationError):
@@ -42,8 +42,8 @@ def test_auth_fail(job_manager):
     [1, 2],
 )
 def test_transfer_error(job_manager, n_threads):
-    job_manager.batch_rw.writer = MockTransferErrorWriter()
-    job_manager.batch_rw.n_threads = n_threads
+    job_manager.transfer_agent.writer = MockTransferErrorWriter()
+    job_manager.transfer_agent.n_threads = n_threads
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
     job_manager.parse_and_commit_items(job)
     with pytest.raises(RemoteException):
@@ -58,8 +58,8 @@ def test_transfer_error(job_manager, n_threads):
     [1, 2],
 )
 def test_checksum_error(job_manager, n_threads):
-    job_manager.batch_rw.writer = MockChecksumErrorWriter()
-    job_manager.batch_rw.n_threads = n_threads
+    job_manager.transfer_agent.writer = MockChecksumErrorWriter()
+    job_manager.transfer_agent.n_threads = n_threads
     job = job_manager.init("file:///root/path/project/", "s3://bucket/project/")
     job_manager.parse_and_commit_items(job)
     with pytest.raises(RemoteException):

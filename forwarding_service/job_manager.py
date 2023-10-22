@@ -2,13 +2,10 @@ from decouple import config
 from pydantic import ValidationError
 
 from . import make_session
-from .batch_reader_writer import BatchReaderWriter
 from .commands import (
-    RaiseFirstExceptionCommand,
-    HandleExceptionCommand,
+    RaiseExceptionCommand,
     UpdateItemStatusCommand,
-    UpdateJobDoneCommand,
-    CommitCommand,
+    UpdateJobErrorCommand,
 )
 from .enum_types import ItemStatus, JobError, JobStatus
 from .exceptions import (
@@ -18,9 +15,10 @@ from .exceptions import (
     InitSrcException,
 )
 from .file import FileSystemReader
-from .models import Item, Job
+from .models import Item, Job, Transaction
 from .query import JobQueryArgs, Query
 from .s3 import S3Writer
+from .transfer_agent import TransferAgent
 from .utils import _match_file_extension
 
 
@@ -28,10 +26,10 @@ class JobManager:
     def __init__(
         self,
         session,
-        batch_reader_writer: BatchReaderWriter,
+        transfer_agent: TransferAgent,
     ):
         self.session = session
-        self.batch_rw = batch_reader_writer
+        self.transfer_agent = transfer_agent
 
     def run(self, job: Job):
         if job.status == JobStatus.DONE:
@@ -43,8 +41,12 @@ class JobManager:
             item for item in job.items if item.status != ItemStatus.TRANSFERRED
         ]
 
-        self._setup_commands(job)
-        self.batch_rw.run(items)
+        self._setup_commands()
+        transactions = [
+            Transaction(item_id=i.id, input=i.in_uri, output=i.out_uri)
+            for i in items
+        ]
+        self.transfer_agent.run(transactions)
 
         job.status = JobStatus.DONE
         self.session.commit()
@@ -134,7 +136,7 @@ class JobManager:
         writer = S3Writer(
             profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default")
         )
-        brw = BatchReaderWriter(
+        agent = TransferAgent(
             reader=FileSystemReader(),
             writer=writer,
             n_threads=n_threads,
@@ -142,12 +144,12 @@ class JobManager:
         )
 
         session = make_session(db_url)
-        job_manager = cls(session=session, batch_reader_writer=brw)
+        job_manager = cls(session=session, transfer_agent=agent)
 
         return job_manager
 
     def _source_exists(self, uri: str):
-        return self.batch_rw.reader.exists(uri)
+        return self.transfer_agent.reader.exists(uri)
 
     def _parse_source(
         self,
@@ -156,7 +158,7 @@ class JobManager:
         pattern_filter: str = "*.*",
         is_regex: bool = False,
     ):
-        list_ = self.batch_rw.reader.list(uri, files_only=files_only)
+        list_ = self.transfer_agent.reader.list(uri, files_only=files_only)
 
         list_ = [
             item
@@ -165,25 +167,24 @@ class JobManager:
         ]
         return list_
 
-    def _setup_commands(self, job):
-        threaded = self.batch_rw.n_threads > 1
+    def _setup_commands(self):
+        threaded = self.transfer_agent.n_threads > 1
 
-        self.batch_rw.post_batch_commands = [
-            UpdateJobDoneCommand(job),
-            CommitCommand(self.session),
-            RaiseFirstExceptionCommand(),
+        self.transfer_agent.post_batch_commands = [
+            UpdateItemStatusCommand(self.session),
+            UpdateJobErrorCommand(self.session),
+            RaiseExceptionCommand(),
         ]
 
-        self.batch_rw.post_item_commands = [
-            UpdateItemStatusCommand(),
-            HandleExceptionCommand(),
-            CommitCommand(self.session, threaded),
-            RaiseFirstExceptionCommand(threaded),
+        self.transfer_agent.post_transaction_commands = [
+            UpdateItemStatusCommand(self.session, threaded),
+            UpdateJobErrorCommand(self.session, threaded),
+            RaiseExceptionCommand(threaded),
         ]
 
     def _refresh_credentials(self, job):
         try:
-            self.batch_rw.refresh_credentials()
+            self.transfer_agent.refresh_credentials()
         except AuthenticationError as e:
             job.error = JobError.AUTH_ERROR
             job.info = {"message": e.error, "operation": e.operation}

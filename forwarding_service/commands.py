@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from .models import TransferItemResult
-from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import CheckSumException, RemoteException, TransferException
-from .models import Job
+from .enum_types import ItemStatus, JobError
+from .exceptions import CheckSumException, TransferException
+from .models import Item, Transaction
 
 
 class Command(ABC):
@@ -14,56 +12,62 @@ class Command(ABC):
         pass
 
 
-class UpdateItemStatusCommand(Command):
-    def execute(self, result: TransferItemResult):
-        item = result.item
-        if result.success:
-            item.status = ItemStatus.TRANSFERRED
-            item.transferred_at = datetime.now()
-
-
-class HandleExceptionCommand(Command):
-    def execute(self, result: TransferItemResult):
-        if result.exception:
-            job = result.item.job
-            exception = result.exception
-
-            if type(exception) == CheckSumException:
-                job.error = max(job.error, JobError.CHECKSUM_ERROR)
-            elif type(exception) == TransferException:
-                job.error = max(job.error, JobError.TRANSFER_ERROR)
-            job.info["message"] = exception.error
-            job.info["operation"] = exception.operation
-
-
-class CommitCommand(Command):
+class CommandWithSession(Command):
     def __init__(self, session, threaded=False):
         self.session = session
         self.threaded = threaded
 
-    def execute(self, *args, **kwargs):
-        if not self.threaded:
-            self.session.commit()
 
-
-class UpdateJobDoneCommand(Command):
-    def __init__(self, job: Job):
-        self.job = job
-
-    def execute(self, *args, **kwargs):
-        if self.job.num_done_items() == len(self.job.items):
-            self.job.status = JobStatus.DONE
-
-
-class RaiseFirstExceptionCommand(Command):
-    def __init__(self, threaded=False):
-        self.threaded = threaded
-
-    def execute(self, results: list[TransferItemResult] | TransferItemResult):
+class UpdateItemStatusCommand(CommandWithSession):
+    def execute(self, payload: Transaction | list[Transaction]):
         if self.threaded:
             return
 
-        if isinstance(results, TransferItemResult):
+        if isinstance(payload, Transaction):
+            payload = [payload]
+
+        for t in payload:
+            item = self.session.query(Item).get(t.item_id)
+            if t.success:
+                item.status = ItemStatus.TRANSFERRED
+                item.transferred_at = datetime.now()
+                self.session.commit()
+
+
+class UpdateJobErrorCommand(CommandWithSession):
+    """Set error fields of job record according to exception"""
+
+    def execute(self, payload: Transaction | list[Transaction]):
+        if self.threaded:
+            return
+
+        if isinstance(payload, Transaction):
+            payload = [payload]
+
+        for t in payload:
+            if t.exception:
+                item = self.session.query(Item).get(t.item_id)
+                job = item.job
+                exception = t.exception
+
+                if type(exception) == CheckSumException:
+                    job.error = max(job.error, JobError.CHECKSUM_ERROR)
+                elif type(exception) == TransferException:
+                    job.error = max(job.error, JobError.TRANSFER_ERROR)
+                job.info["message"] = exception.error
+                job.info["operation"] = exception.operation
+                self.session.commit()
+
+
+class RaiseExceptionCommand(Command):
+    def __init__(self, threaded=False):
+        self.threaded = threaded
+
+    def execute(self, results: list[Transaction] | Transaction):
+        if self.threaded:
+            return
+
+        if isinstance(results, Transaction):
             results = [results]
 
         exceptions = [r.exception for r in results if r.exception]

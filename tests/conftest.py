@@ -4,10 +4,9 @@ from urllib.parse import urlparse
 
 import pytest
 from forwarding_service.base import BaseReader, BaseWriter
+from forwarding_service.transfer_agent import TransferAgent
 from forwarding_service.enum_types import ItemStatus, JobError, JobStatus
 from forwarding_service.job_manager import JobManager
-from forwarding_service.reader_writer import ReaderWriter
-from forwarding_service.batch_reader_writer import BatchReaderWriter
 from sqlmodel import Session, SQLModel, create_engine
 
 
@@ -55,6 +54,7 @@ class MockReader(BaseReader):
 class MockWriter(BaseWriter):
     def __init__(self):
         self.count = 0
+
     def __call__(self, *args, **kwargs):
         self.count += 1
         pass
@@ -80,8 +80,8 @@ def session(engine):
 
 @pytest.fixture
 def job_manager(session):
-    brw = BatchReaderWriter(reader=MockReader(), writer=MockWriter())
-    job_manager = JobManager(session=session, batch_reader_writer=brw)
+    tfa = TransferAgent(reader=MockReader(), writer=MockWriter())
+    job_manager = JobManager(session=session, transfer_agent=tfa)
 
     yield job_manager
 

@@ -13,7 +13,7 @@ from forwarding_service.query import JobQueryArgs, Query
     ],
 )
 def test_multiple_files_job(job_manager, n_threads, in_, out_):
-    job_manager.batch_rw.n_threads = n_threads
+    job_manager.transfer_agent.n_threads = n_threads
     job = job_manager.init(in_, out_)
     job_manager.parse_and_commit_items(job)
     job_manager.run(job)
@@ -21,7 +21,7 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     assert job.error == JobError.NONE
     assert job.num_done_items() == len(job.items)
     assert all(item.transferred_at > item.created_at for item in job.items)
-    assert len(job.items) == job_manager.batch_rw.writer.count
+    assert len(job.items) == job_manager.transfer_agent.writer.count
 
 
 @pytest.mark.parametrize(
@@ -41,12 +41,12 @@ def test_multiple_files_job(job_manager, n_threads, in_, out_):
     ],
 )
 def test_single_file_job(job_manager, n_threads, in_, out_):
-    job_manager.batch_rw.n_threads = n_threads
+    job_manager.transfer_agent.n_threads = n_threads
     expected_out = "s3://bucket/project/file_1.ext"
     job = job_manager.init(in_, out_)
     job = job_manager.parse_and_commit_items(job)
     job_manager.run(job)
-    assert len(job.items) == job_manager.batch_rw.writer.count
+    assert len(job.items) == job_manager.transfer_agent.writer.count
     item = job.items[0]
 
     assert job.status == JobStatus.DONE
