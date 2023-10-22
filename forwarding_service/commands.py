@@ -44,19 +44,18 @@ class UpdateJobErrorCommand(CommandWithSession):
         if isinstance(payload, Transaction):
             payload = [payload]
 
-        for t in payload:
-            if t.exception:
-                item = self.session.query(Item).get(t.item_id)
-                job = item.job
-                exception = t.exception
+        exceptions = [t.exception for t in payload if t.exception]
+        item = self.session.query(Item).get(payload[0].item_id)
+        job = item.job
 
-                if type(exception) == CheckSumException:
-                    job.error = max(job.error, JobError.CHECKSUM_ERROR)
-                elif type(exception) == TransferException:
-                    job.error = max(job.error, JobError.TRANSFER_ERROR)
-                job.info["message"] = exception.error
-                job.info["operation"] = exception.operation
-                self.session.commit()
+        for e in exceptions:
+            if type(e) == CheckSumException:
+                job.error = max(job.error, JobError.CHECKSUM_ERROR)
+            elif type(e) == TransferException:
+                job.error = max(job.error, JobError.TRANSFER_ERROR)
+            job.info["message"] = e.error
+            job.info["operation"] = e.operation
+            self.session.commit()
 
 
 class RaiseExceptionCommand(Command):

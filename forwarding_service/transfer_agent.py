@@ -30,8 +30,8 @@ class TransferAgent(ReaderWriter):
     def run(self, transactions: list[Transaction]):
         n_threads = min(self.n_threads, len(transactions))
         if n_threads > 1:
-            for b in self._split_to_batches(transactions):
-                self._run_threaded(b)
+            for batch in self._split_to_batches(transactions):
+                self._run_threaded(batch)
         else:
             self._run_sequential(transactions)
 

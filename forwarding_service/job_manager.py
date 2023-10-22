@@ -14,10 +14,8 @@ from .exceptions import (
     InitException,
     InitSrcException,
 )
-from .file import FileSystemReader
 from .models import Item, Job, Transaction
 from .query import JobQueryArgs, Query
-from .s3 import S3Writer
 from .transfer_agent import TransferAgent
 from .utils import _match_file_extension
 
@@ -129,25 +127,6 @@ class JobManager:
 
         return job
 
-    @classmethod
-    def local_to_s3(
-        cls, db_url: str = None, n_threads=30, split_ratio: float = 0.1
-    ):
-        writer = S3Writer(
-            profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default")
-        )
-        agent = TransferAgent(
-            reader=FileSystemReader(),
-            writer=writer,
-            n_threads=n_threads,
-            split_ratio=split_ratio,
-        )
-
-        session = make_session(db_url)
-        job_manager = cls(session=session, transfer_agent=agent)
-
-        return job_manager
-
     def _source_exists(self, uri: str):
         return self.transfer_agent.reader.exists(uri)
 
@@ -196,3 +175,25 @@ class JobManager:
             job.info = {"message": e.error, "operation": e.operation}
             self.session.commit()
             raise AuthenticationError(error=e.error, operation=e.operation)
+
+    @classmethod
+    def local_to_s3(
+        cls, db_url: str = None, n_threads=30, split_ratio: float = 0.1
+    ):
+        from .file import FileSystemReader
+        from .s3 import S3Writer
+
+        writer = S3Writer(
+            profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default")
+        )
+        agent = TransferAgent(
+            reader=FileSystemReader(),
+            writer=writer,
+            n_threads=n_threads,
+            split_ratio=split_ratio,
+        )
+
+        session = make_session(db_url)
+        job_manager = cls(session=session, transfer_agent=agent)
+
+        return job_manager
