@@ -16,12 +16,12 @@ class ReaderWriter:
         self.do_checksum = do_checksum
 
     @staticmethod
-    def compute_sha256_checksum(bytes_):
+    def compute_sha256_checksum(bytes_) -> str:
         checksum = hashlib.sha256(bytes_.getbuffer())
         checksum = b64encode(checksum.digest()).decode()
         return checksum
 
-    def send(self, in_uri: str, out_uri: str):
+    def send(self, in_uri: str, out_uri: str) -> None:
         print(f"{in_uri} -> {out_uri}")
         bytes_, type_ = self.reader(in_uri)
 
@@ -31,6 +31,6 @@ class ReaderWriter:
 
         self.writer(bytes_, out_uri, type_, checksum)
 
-    def refresh_credentials(self):
+    def refresh_credentials(self) -> None:
         self.reader.refresh_credentials()
         self.writer.refresh_credentials()

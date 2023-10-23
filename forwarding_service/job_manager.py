@@ -2,18 +2,11 @@ from decouple import config
 from pydantic import ValidationError
 
 from . import make_session
-from .commands import (
-    RaiseExceptionCommand,
-    UpdateItemStatusCommand,
-    UpdateJobErrorCommand,
-)
+from .commands import (RaiseExceptionCommand, UpdateItemStatusCommand,
+                       UpdateJobErrorCommand)
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import (
-    AuthenticationError,
-    InitDuplicateJobException,
-    InitException,
-    InitSrcException,
-)
+from .exceptions import (AuthenticationError, InitDuplicateJobException,
+                         InitException, InitSrcException)
 from .models import Item, Job, Transaction
 from .query import JobQueryArgs, Query
 from .transfer_agent import TransferAgent
@@ -29,7 +22,7 @@ class JobManager:
         self.session = session
         self.transfer_agent = transfer_agent
 
-    def run(self, job: Job):
+    def run(self, job: Job) -> Job:
         if job.status == JobStatus.DONE:
             return job
 
@@ -51,7 +44,11 @@ class JobManager:
 
         return job
 
-    def init(self, source: str, destination: str, regexp: str = ".*"):
+    def init(self, source: str, destination: str, regexp: str = ".*") -> Job:
+        """
+        Performs basic checks on source and destination, checks for duplicates,
+        and returns a Job instance for the next step(s).
+        """
         try:
             job = Job.validate(
                 {"source": source, "destination": destination, "regexp": regexp}
@@ -75,7 +72,11 @@ class JobManager:
 
         return job
 
-    def parse_and_commit_items(self, job: Job):
+    def parse_and_commit_items(self, job: Job) -> Job:
+        """
+        Builds a list of items to transfer by parsing source,
+        and commits items to database.
+        """
         if job.status > JobStatus.PARSED:
             return job
 
@@ -114,8 +115,7 @@ class JobManager:
 
         return job
 
-    def resume(self, job: Job):
-        """Resume Job where status is not Done and file is Parsed"""
+    def resume(self, job: Job) -> Job:
 
         if job.status < JobStatus.DONE:
             job.error = JobError.NONE
@@ -127,7 +127,7 @@ class JobManager:
 
         return job
 
-    def _source_exists(self, uri: str):
+    def _source_exists(self, uri: str) -> bool:
         return self.transfer_agent.reader.exists(uri)
 
     def _parse_source(
@@ -136,7 +136,7 @@ class JobManager:
         files_only: bool = False,
         pattern_filter: str = "*.*",
         is_regex: bool = False,
-    ):
+    ) -> list[str]:
         list_ = self.transfer_agent.reader.list(uri, files_only=files_only)
 
         list_ = [
@@ -146,7 +146,7 @@ class JobManager:
         ]
         return list_
 
-    def _setup_commands(self):
+    def _setup_commands(self) -> None:
         """Assign commands to underlying transfer agent.
 
         Depending on regime (sequential, threaded),
@@ -167,7 +167,7 @@ class JobManager:
             RaiseExceptionCommand(threaded),
         ]
 
-    def _refresh_credentials(self, job):
+    def _refresh_credentials(self, job) -> None:
         try:
             self.transfer_agent.refresh_credentials()
         except AuthenticationError as e:

@@ -8,6 +8,11 @@ from .utils import chunks
 
 
 class TransferAgent(ReaderWriter):
+    """ Wraps a low-level ReaderWriter and adds (threaded) batch transactions.
+        Allows to set commands/callbacks:
+        - post_transaction_commands: list of commands to execute after each transaction (file)
+        - post_batch_commands: list of commands to execute after each batch of transactions (set of files)
+     """
     def __init__(
         self,
         reader: BaseReader,
@@ -27,7 +32,7 @@ class TransferAgent(ReaderWriter):
         ), f"got split_ratio = {split_ratio}. Should be <= 1"
         self.split_ratio = split_ratio
 
-    def run(self, transactions: list[Transaction]):
+    def run(self, transactions: list[Transaction]) -> None:
         n_threads = min(self.n_threads, len(transactions))
         if n_threads > 1:
             for batch in self._split_to_batches(transactions):
@@ -42,22 +47,21 @@ class TransferAgent(ReaderWriter):
         batches = chunks(transactions, n_batches)
         return batches
 
-    def _run_threaded(self, transactions: list[Transaction]):
+    def _run_threaded(self, transactions: list[Transaction]) -> None:
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             _ = [executor.submit(self._transfer_one, t) for t in transactions]
 
         for cmd in self.post_batch_commands:
             cmd.execute(transactions)
-        return transactions
 
-    def _run_sequential(self, transactions: list[Transaction]):
+    def _run_sequential(self, transactions: list[Transaction]) -> None:
         for t in transactions:
             self._transfer_one(t)
 
         for cmd in self.post_batch_commands:
             cmd.execute(transactions)
 
-    def _transfer_one(self, transaction: Transaction):
+    def _transfer_one(self, transaction: Transaction) -> None:
         try:
             self.send(transaction.input, transaction.output)
             transaction.success = True
@@ -66,5 +70,3 @@ class TransferAgent(ReaderWriter):
 
         for cmd in self.post_transaction_commands:
             cmd.execute(transaction)
-
-        return transaction
