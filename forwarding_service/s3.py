@@ -9,9 +9,22 @@ from .exceptions import TransferException
 
 
 class S3Writer(BaseWriter):
-    def __init__(self, profile_name='default', *args, **kwargs):
-        self.session = boto3.Session(profile_name=profile_name)
+    def __init__(self, session, *args, **kwargs):
+        self.session = session
         self.client = self.session.client('s3')
+
+    @classmethod
+    def from_profile_name(cls, profile_name):
+        session = boto3.Session(profile_name=profile_name)
+        self.client = session.client('s3')
+
+    @classmethod
+    def from_auth_client(cls, auth_client):
+        creds = auth_client.get_credentials()
+        session = boto3.Session(aws_access_key_id=creds['aws_access_key_id'],
+                                   aws_secret_access_key=creds['aws_secret_access_key'])
+        writer = cls(session)
+        return writer
 
     def __call__(
         self,

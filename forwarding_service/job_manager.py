@@ -2,11 +2,18 @@ from decouple import config
 from pydantic import ValidationError
 
 from . import make_session
-from .commands import (RaiseExceptionCommand, UpdateItemStatusCommand,
-                       UpdateJobErrorCommand)
+from .commands import (
+    RaiseExceptionCommand,
+    UpdateItemStatusCommand,
+    UpdateJobErrorCommand,
+)
 from .enum_types import ItemStatus, JobError, JobStatus
-from .exceptions import (AuthenticationError, InitDuplicateJobException,
-                         InitException, InitSrcException)
+from .exceptions import (
+    AuthenticationError,
+    InitDuplicateJobException,
+    InitException,
+    InitSrcException,
+)
 from .models import Item, Job, Transaction
 from .query import JobQueryArgs, Query
 from .transfer_agent import TransferAgent
@@ -116,7 +123,6 @@ class JobManager:
         return job
 
     def resume(self, job: Job) -> Job:
-
         if job.status < JobStatus.DONE:
             job.error = JobError.NONE
             job.info = None
@@ -183,9 +189,29 @@ class JobManager:
         from .file import FileSystemReader
         from .s3 import S3Writer
 
-        writer = S3Writer(
+        writer = S3Writer.from_profile_name(
             profile_name=config("FORW_SERV_AWS_PROFILE_NAME", "default")
         )
+        agent = TransferAgent(
+            reader=FileSystemReader(),
+            writer=writer,
+            n_threads=n_threads,
+            split_ratio=split_ratio,
+        )
+
+        session = make_session(db_url)
+        job_manager = cls(session=session, transfer_agent=agent)
+
+        return job_manager
+
+    @classmethod
+    def local_to_s3_auth(
+            cls, auth_client, db_url: str = None, n_threads=30, split_ratio: float = 0.1
+    ):
+        from .file import FileSystemReader
+        from .s3 import S3Writer
+
+        writer = S3Writer.from_auth_client(auth_client)
         agent = TransferAgent(
             reader=FileSystemReader(),
             writer=writer,
