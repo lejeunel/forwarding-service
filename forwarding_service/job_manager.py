@@ -84,7 +84,7 @@ class JobManager:
         Builds a list of items to transfer by parsing source,
         and commits items to database.
         """
-        if job.status > JobStatus.PARSED:
+        if job.status >= JobStatus.PARSED:
             return job
 
         self._refresh_credentials(job)
