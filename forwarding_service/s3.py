@@ -39,7 +39,7 @@ class S3Writer(BaseWriter):
             return self.client.put_object(
                 Body=bytes_,
                 Bucket=uri.netloc,
-                Key=uri.path,
+                Key=uri.path[1:],
                 ContentType=mime_type if mime_type else '',
                 ChecksumAlgorithm="SHA256",
                 ChecksumSHA256=checksum,
