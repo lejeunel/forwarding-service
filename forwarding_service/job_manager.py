@@ -46,7 +46,9 @@ class JobManager:
         ]
         self.transfer_agent.run(transactions)
 
-        job.status = JobStatus.DONE
+        if job.num_done_items() == len(job.items):
+            job.status = JobStatus.DONE
+
         self.session.commit()
 
         return job
