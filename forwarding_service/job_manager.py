@@ -18,6 +18,7 @@ from .models import Item, Job, Transaction
 from .query import JobQueryArgs, Query
 from .transfer_agent import TransferAgent
 from .utils import _match_file_extension
+from .auth import VaultCredentials
 
 
 class JobManager:
@@ -213,6 +214,30 @@ class JobManager:
         from .file import FileSystemReader
         from .s3 import S3Writer
 
+        writer = S3Writer.from_auth_client(auth_client)
+        agent = TransferAgent(
+            reader=FileSystemReader(),
+            writer=writer,
+            n_threads=n_threads,
+            split_ratio=split_ratio,
+        )
+
+        session = make_session(db_url)
+        job_manager = cls(session=session, transfer_agent=agent)
+
+        return job_manager
+
+    @classmethod
+    def local_to_s3_via_vault(
+            cls, db_url: str = None, n_threads=30, split_ratio: float = 0.1
+    ):
+        from .file import FileSystemReader
+        from .s3 import S3Writer
+
+        auth_client = VaultCredentials(config('FORW_SERV_VAULT_URL'),
+                                       config('FORW_SERV_VAULT_TOKEN_PATH'),
+                                       config('FORW_SERV_VAULT_ROLE_ID'),
+                                       config('FORW_SERV_VAULT_SECRET_ID'))
         writer = S3Writer.from_auth_client(auth_client)
         agent = TransferAgent(
             reader=FileSystemReader(),

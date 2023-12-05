@@ -55,6 +55,7 @@ class TransferAgent(ReaderWriter):
             cmd.execute(transactions)
 
     def _run_sequential(self, transactions: list[Transaction]) -> None:
+        breakpoint()
         for t in transactions:
             self._transfer_one(t)
 

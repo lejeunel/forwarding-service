@@ -15,10 +15,13 @@ def run(
     destination: Annotated[str, typer.Argument()],
     regexp: Annotated[str, typer.Option()] = ".*",
     n_threads: Annotated[int, typer.Option()] = 30,
-    split_ratio: Annotated[float, typer.Option(help='split items in small batches and sync database after each batch')] = 0.1,
+    use_vault: Annotated[bool, typer.Option()] = False,
 ):
     """Run job"""
-    jm = JobManager.local_to_s3(n_threads=n_threads)
+    if use_vault:
+        jm = JobManager.local_to_s3_via_vault(n_threads=n_threads)
+    else:
+        jm = JobManager.local_to_s3(n_threads=n_threads)
     job = jm.init(source, destination, regexp)
     print("created job", job.id)
     jm.parse_and_commit_items(job)
@@ -31,9 +34,13 @@ def run(
 def resume(
     id: Annotated[str, typer.Argument()],
     n_threads: Annotated[int, typer.Option()] = 30,
+    use_vault: Annotated[bool, typer.Option()] = False,
 ):
     """Resume job"""
-    jm = JobManager.local_to_s3(n_threads=n_threads)
+    if use_vault:
+        jm = JobManager.local_to_s3_via_vault(n_threads=n_threads)
+    else:
+        jm = JobManager.local_to_s3(n_threads=n_threads)
     query = Query(make_session(), Job)
     if query.exists(id):
         jm.resume(query.get(JobQueryArgs(id=id))[0])

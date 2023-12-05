@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "forwarding-service"
-version = "0.1.0"
+version = "0.2.0"
 description = "Resilient and flexible data tranfer tool."
 authors = ["Laurent Lejeune <me@lejeunel.org>"]
 readme = "README.org"
@@ -16,7 +16,7 @@ python-decouple = "^3.8"
 aws-error-utils = "^2.7.0"
 typer = "^0.9.0"
 sqlmodel = "^0.0.8"
-hvac = "^1.2.1"
+hvac = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"

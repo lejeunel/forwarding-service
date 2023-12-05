@@ -45,6 +45,8 @@ class UpdateJobErrorCommand(CommandWithSession):
             payload = [payload]
 
         exceptions = [t.exception for t in payload if t.exception]
+        if len(payload) == 0:
+            return
         item = self.session.query(Item).get(payload[0].item_id)
         job = item.job
 

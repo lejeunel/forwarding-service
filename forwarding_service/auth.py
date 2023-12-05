@@ -48,3 +48,15 @@ class VaultCredentials(BaseAuthenticator):
             return self.client.read(self.token_path)
         except VaultError as e:
             raise AuthenticationError(error=e.message, operation=e.method)
+
+    def get_credentials(self):
+        self.client.auth.approle.login(
+            role_id=self.role_id,
+            secret_id=self.secret_id,
+        )
+
+        creds = self.client.read(self.token_path)
+        return {
+            "aws_access_key_id": creds["data"]["aws_key"],
+            "aws_secret_access_key": creds["data"]["aws_secret"],
+        }
