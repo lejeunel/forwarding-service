@@ -21,6 +21,7 @@ class JobQueryArgs(QueryArgs):
     status: JobStatus | None = None
     error: JobError | None = None
     created_at: datetime | None = None
+    sort_on: str = 'created_at'
 
 
 class ItemQueryArgs(QueryArgs):

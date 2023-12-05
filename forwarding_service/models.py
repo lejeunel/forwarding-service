@@ -52,6 +52,8 @@ class Job(SQLModel, table=True):
         else:
             result["progress"] = "nan"
 
+        result.pop('_sa_instance_state', None)
+
         return result
 
 

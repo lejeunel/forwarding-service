@@ -55,7 +55,8 @@ def ls(
     error: Annotated[str, typer.Option()] | None = None,
     source: Annotated[str, typer.Option()] | None = None,
     destination: Annotated[str, typer.Option()] | None = None,
-    limit: Annotated[int, typer.Option()] = 50,
+    limit: Annotated[int, typer.Option()] = 10,
+    sort_on: Annotated[str, typer.Option()] = 'created_at',
 ):
     """list jobs"""
     args = dict(locals())
